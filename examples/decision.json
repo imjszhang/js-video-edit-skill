@@ -1,0 +1,121 @@
+{
+  "scenes": [
+    {
+      "scene_id": 1,
+      "scene_name": "Opening",
+      "candidates": [
+        {
+          "file": "clip_001.mp4",
+          "reason_rejected": "Audio starts too late, awkward silence at beginning"
+        },
+        {
+          "file": "clip_002.mp4",
+          "reason_rejected": "Camera angle too wide, subject not clearly visible"
+        },
+        {
+          "file": "clip_003.mp4",
+          "reason_selected": "Clean audio start, good framing, strong hook in first 5 seconds"
+        }
+      ],
+      "selected": "clip_003.mp4",
+      "in_point": 0.0,
+      "out_point": 12.5,
+      "reason": "Sets the tone with a clear hook. Cut at 12.5s right before the topic transitions."
+    },
+    {
+      "scene_id": 2,
+      "scene_name": "Thinking Partner",
+      "candidates": [
+        {
+          "file": "clip_010.mp4",
+          "reason_rejected": "Background noise too loud"
+        },
+        {
+          "file": "clip_011.mp4",
+          "reason_rejected": "Subject repeats the same point from the opening"
+        },
+        {
+          "file": "clip_012.mp4",
+          "reason_rejected": "Camera shake in first 3 seconds"
+        },
+        {
+          "file": "clip_013.mp4",
+          "reason_selected": "Best audio quality, clear transition into collaborative discussion"
+        },
+        {
+          "file": "clip_014.mp4",
+          "reason_rejected": "Redundant with clip_013, shorter and less complete"
+        }
+      ],
+      "selected": "clip_013.mp4",
+      "in_point": 45.2,
+      "out_point": 98.7,
+      "reason": "Core 'thinking partner' segment. Trim out pauses and tangents. In at 45.2s when the actual collaboration begins."
+    },
+    {
+      "scene_id": 3,
+      "scene_name": "Goals & Validation",
+      "candidates": [
+        {
+          "file": "clip_020.mp4",
+          "reason_rejected": "Too brief, doesn't cover full validation process"
+        },
+        {
+          "file": "clip_021.mp4",
+          "reason_rejected": "Subject gets distracted by notification"
+        },
+        {
+          "file": "clip_022.mp4",
+          "reason_selected": "Comprehensive walkthrough of goal-setting and validation criteria"
+        },
+        {
+          "file": "clip_023.mp4",
+          "reason_rejected": "Same content as clip_022 but worse audio"
+        },
+        {
+          "file": "clip_024.mp4",
+          "reason_rejected": "Cut off mid-sentence at the end"
+        },
+        {
+          "file": "clip_025.mp4",
+          "reason_rejected": "Duplicate take of clip_022"
+        }
+      ],
+      "selected": "clip_022.mp4",
+      "in_point": 156.3,
+      "out_point": 210.8,
+      "reason": "The most complete and articulate take of the goals discussion. Out at 210.8s when the conversation shifts to ambition."
+    },
+    {
+      "scene_id": 4,
+      "scene_name": "Ambition",
+      "candidates": [
+        {
+          "file": "clip_030.mp4",
+          "reason_rejected": "Too short, lacks energy"
+        },
+        {
+          "file": "clip_031.mp4",
+          "reason_rejected": "Subject stumbles on key phrase multiple times"
+        },
+        {
+          "file": "clip_032.mp4",
+          "reason_selected": "Strong closing statement, good energy, clean delivery"
+        },
+        {
+          "file": "clip_033.mp4",
+          "reason_rejected": "Ending is stronger but beginning overlaps with previous scene"
+        }
+      ],
+      "selected": "clip_032.mp4",
+      "in_point": 245.0,
+      "out_point": 280.5,
+      "reason": "Strong ambition segment. In at 245.0s right after the goals discussion concludes. Ends on a high note at 280.5s."
+    }
+  ],
+  "global_settings": {
+    "target_duration": "3:30",
+    "color_profile": "warm-cinematic",
+    "subtitle_style": "Arial, 24px, white with black outline"
+  }
+}

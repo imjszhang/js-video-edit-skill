@@ -1,0 +1,10 @@
+node_modules
+dist
+out/
+.env
+*.mp4
+*.mov
+*.mkv
+cuts/
+transcripts/
+raw/

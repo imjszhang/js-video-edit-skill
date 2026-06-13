@@ -1,0 +1,36 @@
+{
+  "name": "js-video-edit-skill",
+  "version": "0.1.0",
+  "description": "Text-driven video editing pipeline using open-source tools",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "vep": "./dist/scripts/pipeline.js"
+  },
+  "scripts": {
+    "transcribe": "tsx scripts/transcribe.ts",
+    "analyze": "tsx scripts/analyze.ts",
+    "cut": "tsx scripts/cut.ts",
+    "grade": "tsx scripts/grade.ts",
+    "subtitle": "tsx scripts/subtitle.ts",
+    "render": "tsx scripts/render.ts",
+    "generate-luts": "tsx scripts/generate-luts.ts",
+    "pipeline": "tsx scripts/pipeline.ts",
+    "test": "tsx tests/decision.test.ts",
+    "build": "tsc",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "commander": "^12.1.0",
+    "pino": "^9.5.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
