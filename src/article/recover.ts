@@ -2,9 +2,50 @@ import { readdirSync, writeFileSync, existsSync } from "fs";
 import path from "path";
 import { log } from "../utils.js";
 import { probeAudioDuration } from "../ffmpeg.js";
+import {
+  parseSegmentId,
+  sortBySegmentId,
+  scenePngName,
+} from "./segment-files.js";
 
 export interface RecoverOptions {
   dryRun?: boolean;
+}
+
+function warnSegmentMismatch(
+  audioIds: number[],
+  pngIds: Set<number>,
+  scenesDir: string
+): void {
+  const audioCount = audioIds.length;
+  const pngCount = pngIds.size;
+
+  if (audioCount !== pngCount) {
+    log.text(
+      `Warning: ${audioCount} audio segment(s) but ${pngCount} PNG scene(s) — assemble may fail for missing visuals`
+    );
+  }
+
+  const missingVisuals = audioIds.filter((id) => !pngIds.has(id));
+  if (missingVisuals.length > 0) {
+    const preview = missingVisuals.slice(0, 5).join(", ");
+    const suffix =
+      missingVisuals.length > 5 ? ` … (+${missingVisuals.length - 5} more)` : "";
+    log.text(
+      `Warning: missing PNG for segment id(s): ${preview}${suffix}`
+    );
+    log.text(
+      "Action: run vep article screenshot, reduce storyboard segments, or map multiple audio to one visual"
+    );
+  }
+
+  if (audioCount > 0 && pngCount === 0 && existsSync(scenesDir)) {
+    log.text("Warning: no scene*.png found — run vep article screenshot before assemble");
+  }
+
+  log.text(
+    "Note: recovered narration is placeholder — edit storyboard.json before timeline/assemble"
+  );
 }
 
 export async function runArticleRecover(
@@ -19,9 +60,10 @@ export async function runArticleRecover(
     process.exit(1);
   }
 
-  const audioFiles = readdirSync(audioDir)
-    .filter((f) => /^seg\d+\.mp3$/i.test(f))
-    .sort();
+  const audioFiles = sortBySegmentId(
+    readdirSync(audioDir).filter((f) => /^seg\d+\.mp3$/i.test(f)),
+    "seg"
+  );
 
   if (audioFiles.length === 0) {
     log.error("No seg*.mp3 files found in audio/");
@@ -29,8 +71,19 @@ export async function runArticleRecover(
   }
 
   const pngFiles = existsSync(scenesDir)
-    ? readdirSync(scenesDir).filter((f) => /^scene\d+\.png$/i.test(f)).sort()
+    ? sortBySegmentId(
+        readdirSync(scenesDir).filter((f) => /^scene\d+\.png$/i.test(f)),
+        "scene"
+      )
     : [];
+
+  const pngIds = new Set(
+    pngFiles
+      .map((f) => parseSegmentId(f, "scene"))
+      .filter((id): id is number => id !== null)
+  );
+
+  const audioIds: number[] = [];
 
   let offset = 0;
   const segments: {
@@ -53,24 +106,27 @@ export async function runArticleRecover(
     selected: string;
   }[] = [];
 
-  for (let i = 0; i < audioFiles.length; i++) {
-    const id = i + 1;
-    const audioFile = audioFiles[i]!;
+  for (const audioFile of audioFiles) {
+    const id = parseSegmentId(audioFile, "seg");
+    if (id === null) continue;
+
+    audioIds.push(id);
     const audioPath = path.join(audioDir, audioFile);
     const trimmedRel = `trimmed/${audioFile}`;
     const trimmedPath = path.join(projectDir, trimmedRel);
 
     let duration: number;
-    if (existsSync(trimmedPath)) {
+    if (!opts.dryRun && existsSync(trimmedPath)) {
       duration = await probeAudioDuration(trimmedPath);
-    } else {
+    } else if (!opts.dryRun) {
       duration = await probeAudioDuration(audioPath);
+    } else {
+      duration = 5;
     }
 
-    const pngMatch = pngFiles.find((f) => f === `scene${String(id).padStart(2, "0")}.png`);
-    const visualRel = pngMatch
-      ? `scenes/${pngMatch}`
-      : `scenes/scene${String(id).padStart(2, "0")}.png`;
+    const pngName = scenePngName(id);
+    const pngMatch = pngFiles.find((f) => f === pngName);
+    const visualRel = pngMatch ? `scenes/${pngMatch}` : `scenes/${pngName}`;
 
     const start = offset;
     const end = offset + duration;
@@ -97,6 +153,8 @@ export async function runArticleRecover(
 
     offset = end;
   }
+
+  warnSegmentMismatch(audioIds, pngIds, scenesDir);
 
   const timeline = {
     version: 1 as const,

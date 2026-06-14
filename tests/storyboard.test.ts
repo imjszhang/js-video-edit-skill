@@ -1,7 +1,7 @@
 import assert from "node:assert";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { validateStoryboard } from "../src/article/storyboard.js";
+import { validateStoryboard, validateSegmentFields } from "../src/article/storyboard.js";
 import { validateTimeline } from "../src/article/timeline.js";
 
 const STORYBOARD_PATH = resolve(import.meta.dirname, "..", "examples", "storyboard.json");
@@ -40,6 +40,15 @@ test("rejects invalid storyboard JSON", () => {
 test("rejects storyboard without segments", () => {
   const invalid = JSON.stringify({ version: 1, title: "Test", segments: [] });
   assert.throws(() => validateStoryboard(invalid));
+});
+
+test("validateSegmentFields warns on missing hero text", () => {
+  const warnings = validateSegmentFields({
+    id: 1,
+    visual_type: "hero",
+    narration: "test narration",
+  });
+  assert.ok(warnings.some((w) => w.includes("hero missing")));
 });
 
 test("validates timeline schema", () => {

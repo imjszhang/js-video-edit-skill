@@ -114,7 +114,7 @@ vep article pipeline ./project            # render → screenshot → tts → ti
 |---------|-------------|
 | `vep article init <projectDir>` | Initialize project structure + templates |
 | `vep article storyboard <projectDir>` | Analyze article.md, output LLM digest |
-| `vep article validate <projectDir>` | Validate storyboard.json |
+| `vep article validate <projectDir>` | Validate storyboard.json (`--strict` for CI) |
 | `vep article render <projectDir>` | Render HTML scenes |
 | `vep article screenshot <projectDir>` | JS-Eyes PNG capture |
 | `vep article tts <projectDir>` | edge-tts audio generation |
@@ -124,6 +124,8 @@ vep article pipeline ./project            # render → screenshot → tts → ti
 | `vep article pipeline <projectDir>` | End-to-end with `--from` / `--to` |
 
 **Data layers:** `storyboard.json` (intent) → `timeline.json` (audio-authoritative) → `subs.ass` + `shot-list.json` (post-production)
+
+> **Note:** Standalone scripts under `scripts/*.ts` (except `cli.ts`) are deprecated thin wrappers — use `vep <command>` instead.
 
 ### Footage Pipeline Options
 

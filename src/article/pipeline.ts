@@ -62,7 +62,12 @@ export async function runArticlePipeline(
 
     if (shouldRun("storyboard")) {
       runArticleStoryboard(projectDir, { writeTemplate: opts.writeTemplate });
-      log.text("storyboard step outputs digest — ensure storyboard.json exists before continuing");
+      if (!opts.writeTemplate && toIdx > stepIndex("storyboard")) {
+        log.error(
+          "storyboard step only outputs digest. Use --write-template to generate draft, or run with --from render after updating storyboard.json"
+        );
+        process.exit(1);
+      }
       if (to === "storyboard") return;
     }
 

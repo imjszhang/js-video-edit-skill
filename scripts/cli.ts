@@ -19,6 +19,7 @@ import { runArticleAssemble } from "../src/article/assemble.js";
 import { runArticlePipeline, ARTICLE_STEPS } from "../src/article/pipeline.js";
 import { runArticleRecover } from "../src/article/recover.js";
 import { log } from "../src/utils.js";
+import { cliContext, setCliContext } from "../src/cli-context.js";
 
 const program = new Command();
 
@@ -27,7 +28,14 @@ program
   .description("Text-driven video editing pipeline (footage + article-to-video)")
   .version("0.2.0")
   .option("-v, --verbose", "Print detailed command output")
-  .option("--dry-run", "Print steps without writing files");
+  .option("--dry-run", "Print steps without writing files")
+  .hook("preAction", (thisCommand) => {
+    const opts = thisCommand.optsWithGlobals();
+    setCliContext({
+      verbose: Boolean(opts.verbose),
+      dryRun: Boolean(opts.dryRun),
+    });
+  });
 
 // --- Mode A: Footage editing ---
 
@@ -233,9 +241,13 @@ article
   .description("Validate storyboard.json schema and fields")
   .argument("<projectDir>", "Project directory")
   .option("--storyboard <file>", "Custom storyboard path")
+  .option("--strict", "Exit with error if field warnings exist")
   .action((projectDir, opts) => {
     try {
-      runArticleValidate(projectDir, opts.storyboard);
+      runArticleValidate(projectDir, {
+        storyboardFile: opts.storyboard,
+        strict: opts.strict,
+      });
     } catch (err) {
       log.error(`${err}`);
       process.exit(1);
@@ -264,16 +276,15 @@ article
   .option("--tab-delay <ms>", "Delay before screenshot", "3000")
   .option("--retries <n>", "Retry count per scene", "1")
   .option("--skip-validate", "Skip centering validation")
-  .action(async (projectDir, opts, cmd) => {
-    const globals = cmd.parent?.parent?.opts() ?? {};
+  .action(async (projectDir, opts) => {
     try {
       await runArticleScreenshot(projectDir, {
         port: parseInt(opts.port),
         tabDelay: parseInt(opts.tabDelay),
         retries: parseInt(opts.retries),
         skipValidate: opts.skipValidate,
-        verbose: globals.verbose,
-        dryRun: globals.dryRun,
+        verbose: cliContext.verbose,
+        dryRun: cliContext.dryRun,
       });
     } catch (err) {
       log.error(`${err}`);
@@ -289,16 +300,15 @@ article
   .option("--from-id <n>", "Start segment id")
   .option("--to-id <n>", "End segment id")
   .option("--storyboard <file>", "Custom storyboard path")
-  .action(async (projectDir, opts, cmd) => {
-    const globals = cmd.parent?.parent?.opts() ?? {};
+  .action(async (projectDir, opts) => {
     try {
       await runArticleTts(projectDir, {
         voice: opts.voice,
         fromId: opts.fromId ? parseInt(opts.fromId) : undefined,
         toId: opts.toId ? parseInt(opts.toId) : undefined,
         storyboardFile: opts.storyboard,
-        verbose: globals.verbose,
-        dryRun: globals.dryRun,
+        verbose: cliContext.verbose,
+        dryRun: cliContext.dryRun,
       });
     } catch (err) {
       log.error(`${err}`);
@@ -312,14 +322,13 @@ article
   .argument("<projectDir>", "Project directory")
   .option("--storyboard <file>", "Custom storyboard path")
   .option("--skip-trim", "Skip silenceremove (use existing trimmed/)")
-  .action(async (projectDir, opts, cmd) => {
-    const globals = cmd.parent?.parent?.opts() ?? {};
+  .action(async (projectDir, opts) => {
     try {
       await runArticleTimeline(projectDir, {
         storyboardFile: opts.storyboard,
         skipTrim: opts.skipTrim,
-        verbose: globals.verbose,
-        dryRun: globals.dryRun,
+        verbose: cliContext.verbose,
+        dryRun: cliContext.dryRun,
       });
     } catch (err) {
       log.error(`${err}`);
@@ -331,12 +340,11 @@ article
   .command("assemble")
   .description("Assemble final video from timeline + scenes")
   .argument("<projectDir>", "Project directory")
-  .action(async (projectDir, _opts, cmd) => {
-    const globals = cmd.parent?.parent?.opts() ?? {};
+  .action(async (projectDir) => {
     try {
       await runArticleAssemble(projectDir, {
-        verbose: globals.verbose,
-        dryRun: globals.dryRun,
+        verbose: cliContext.verbose,
+        dryRun: cliContext.dryRun,
       });
     } catch (err) {
       log.error(`${err}`);
@@ -348,10 +356,9 @@ article
   .command("recover")
   .description("Recover storyboard + timeline from existing audio/scenes")
   .argument("<projectDir>", "Project directory")
-  .action(async (projectDir, _opts, cmd) => {
-    const globals = cmd.parent?.parent?.opts() ?? {};
+  .action(async (projectDir) => {
     try {
-      await runArticleRecover(projectDir, { dryRun: globals.dryRun });
+      await runArticleRecover(projectDir, { dryRun: cliContext.dryRun });
     } catch (err) {
       log.error(`${err}`);
       process.exit(1);
@@ -360,16 +367,17 @@ article
 
 article
   .command("pipeline")
-  .description("Run article-to-video pipeline end-to-end")
+  .description(
+    "Run article-to-video pipeline end-to-end (storyboard step stops unless --write-template)"
+  )
   .argument("<projectDir>", "Project directory")
   .option("--from <step>", `Start step (${ARTICLE_STEPS.join("|")})`, "render")
   .option("--to <step>", `End step (${ARTICLE_STEPS.join("|")})`, "assemble")
   .option("--skip-tts", "Skip TTS generation")
   .option("--skip-screenshot", "Skip screenshot step")
   .option("--storyboard <file>", "Custom storyboard path")
-  .option("--write-template", "Write draft storyboard in storyboard step")
-  .action(async (projectDir, opts, cmd) => {
-    const globals = cmd.parent?.parent?.opts() ?? {};
+  .option("--write-template", "Write draft storyboard.json (required to continue past storyboard step)")
+  .action(async (projectDir, opts) => {
     await runArticlePipeline(projectDir, {
       from: opts.from,
       to: opts.to,
@@ -377,8 +385,8 @@ article
       skipScreenshot: opts.skipScreenshot,
       storyboardFile: opts.storyboard,
       writeTemplate: opts.writeTemplate,
-      verbose: globals.verbose,
-      dryRun: globals.dryRun,
+      verbose: cliContext.verbose,
+      dryRun: cliContext.dryRun,
     });
   });
 

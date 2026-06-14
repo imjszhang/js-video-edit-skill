@@ -335,29 +335,39 @@ export async function imageToVideo(
 }
 
 /**
- * Mux video and audio streams.
+ * Mux video and audio streams. Duration follows audio when provided.
  */
 export async function muxVideoAudio(
   videoPath: string,
   audioPath: string,
-  output: string
+  output: string,
+  opts: { duration?: number } = {}
 ): Promise<void> {
   ensureDir(path.dirname(output));
-  await runCommand("ffmpeg", [
+  const args = [
     "-y",
     "-i",
     crossPath(videoPath),
     "-i",
     crossPath(audioPath),
+    "-map",
+    "0:v:0",
+    "-map",
+    "1:a:0",
     "-c:v",
     "copy",
     "-c:a",
     "aac",
     "-b:a",
     "192k",
-    "-shortest",
-    crossPath(output),
-  ]);
+  ];
+
+  if (opts.duration !== undefined) {
+    args.push("-t", opts.duration.toString());
+  }
+
+  args.push(crossPath(output));
+  await runCommand("ffmpeg", args);
 }
 
 /**
@@ -445,9 +455,46 @@ export async function concatAudio(
 }
 
 /**
- * Get audio duration via ffprobe.
+ * Get audio duration via ffprobe (audio stream).
  */
 export async function probeAudioDuration(input: string): Promise<number> {
-  const info = await getMediaInfo(input);
-  return info.duration;
+  const args = [
+    "-v",
+    "error",
+    "-select_streams",
+    "a:0",
+    "-show_entries",
+    "stream=duration",
+    "-show_entries",
+    "format=duration",
+    "-of",
+    "json",
+    crossPath(input),
+  ];
+
+  return new Promise((resolve, reject) => {
+    const child = spawn("ffprobe", args, {
+      stdio: ["ignore", "pipe", "inherit"],
+    });
+    let out = "";
+    child.stdout.on("data", (d) => (out += d.toString()));
+    child.on("close", (code) => {
+      if (code !== 0) return reject(new Error("ffprobe failed"));
+      try {
+        const data = JSON.parse(out);
+        const stream = data.streams?.[0];
+        const format = data.format;
+        const duration = parseFloat(
+          stream?.duration ?? format?.duration ?? "0"
+        );
+        if (!duration || duration <= 0) {
+          return reject(new Error(`Could not probe audio duration: ${input}`));
+        }
+        resolve(duration);
+      } catch (e) {
+        reject(e);
+      }
+    });
+    child.on("error", reject);
+  });
 }

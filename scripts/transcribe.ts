@@ -1,42 +1,19 @@
 #!/usr/bin/env node
-import { Command } from "commander";
-import { transcribe } from "../src/whisper.js";
-import { findVideos, ensureDir, log, crossPath } from "../src/utils.js";
+/** @deprecated Use `vep transcribe` */
+import { spawnSync } from "child_process";
 import path from "path";
+import { fileURLToPath } from "url";
 
-const program = new Command();
+console.warn("scripts/transcribe.ts is deprecated — use: vep transcribe");
 
-program
-  .name("vep transcribe")
-  .description("Transcribe all videos in a directory using Whisper")
-  .argument("<inputDir>", "Directory containing video files")
-  .argument("[outputDir]", "Output directory for transcripts", "./transcripts")
-  .option("-m, --model <model>", "Whisper model size", "base")
-  .option("-l, --language <lang>", "Language code", undefined)
-  .action(async (inputDir: string, outputDir: string, opts: any) => {
-    const videos = findVideos(inputDir);
-    if (videos.length === 0) {
-      log.error(`No video files found in ${inputDir}`);
-      process.exit(1);
-    }
-
-    log.scene(`Found ${videos.length} video(s) to transcribe`);
-    ensureDir(outputDir);
-
-    for (const video of videos) {
-      log.text(`Transcribing: ${path.basename(video)}`);
-      try {
-        const result = await transcribe(video, outputDir, {
-          model: opts.model,
-          language: opts.language,
-        });
-        log.text(`  → ${result}`);
-      } catch (err) {
-        log.error(`Failed to transcribe ${video}: ${err}`);
-      }
-    }
-
-    log.scene("Transcription complete");
-  });
-
-program.parse();
+const result = spawnSync(
+  "npx",
+  [
+    "tsx",
+    path.join(path.dirname(fileURLToPath(import.meta.url)), "cli.ts"),
+    "transcribe",
+    ...process.argv.slice(2),
+  ],
+  { stdio: "inherit", shell: true }
+);
+process.exit(result.status ?? 1);

@@ -1,15 +1,8 @@
+import { writeFileSync, unlinkSync, mkdirSync } from "fs";
+import path from "path";
 import { runCommandOutput } from "./utils.js";
 
-export type EdgeTtsEngine = "edge-tts" | null;
-
-export function detectEdgeTts(): EdgeTtsEngine {
-  try {
-    // Quick check — edge-tts --help returns 0 when installed
-    return "edge-tts";
-  } catch {
-    return null;
-  }
-}
+const LONG_TEXT_THRESHOLD = 2000;
 
 export async function isEdgeTtsAvailable(): Promise<boolean> {
   try {
@@ -25,34 +18,57 @@ export interface EdgeTtsOptions {
   text: string;
   output: string;
   verbose?: boolean;
+  tmpDir?: string;
+  segmentId?: number;
 }
 
 export async function synthesizeEdgeTts(opts: EdgeTtsOptions): Promise<void> {
   const { spawn } = await import("child_process");
   const { ensureDir } = await import("./utils.js");
-  const path = await import("path");
 
   ensureDir(path.dirname(opts.output));
 
-  return new Promise((resolve, reject) => {
-    const args = [
-      "--voice",
-      opts.voice,
-      "--text",
-      opts.text,
-      "--write-media",
-      opts.output,
-    ];
+  const useFile = opts.text.length > LONG_TEXT_THRESHOLD;
+  let tmpFile: string | undefined;
 
-    if (opts.verbose) {
-      console.log(`edge-tts ${args.join(" ")}`);
-    }
+  if (useFile) {
+    const dir = opts.tmpDir ?? path.join(path.dirname(opts.output), "..", ".vep-tmp");
+    mkdirSync(dir, { recursive: true });
+    const slug = opts.segmentId !== undefined ? `seg${String(opts.segmentId).padStart(2, "0")}` : "tts";
+    tmpFile = path.join(dir, `${slug}.txt`);
+    writeFileSync(tmpFile, opts.text, "utf-8");
+  }
 
-    const child = spawn("edge-tts", args, { stdio: "inherit" });
-    child.on("close", (code) => {
-      if (code === 0) resolve();
-      else reject(new Error(`edge-tts exited with code ${code}`));
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const args = ["--voice", opts.voice];
+
+      if (useFile && tmpFile) {
+        args.push("--file", tmpFile);
+      } else {
+        args.push("--text", opts.text);
+      }
+
+      args.push("--write-media", opts.output);
+
+      if (opts.verbose) {
+        console.log(`edge-tts ${args.join(" ")}`);
+      }
+
+      const child = spawn("edge-tts", args, { stdio: "inherit" });
+      child.on("close", (code) => {
+        if (code === 0) resolve();
+        else reject(new Error(`edge-tts exited with code ${code}`));
+      });
+      child.on("error", reject);
     });
-    child.on("error", reject);
-  });
+  } finally {
+    if (tmpFile) {
+      try {
+        unlinkSync(tmpFile);
+      } catch {
+        /* ignore cleanup errors */
+      }
+    }
+  }
 }

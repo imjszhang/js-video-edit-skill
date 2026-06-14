@@ -51,6 +51,8 @@ export async function runArticleTts(
       text: seg.narration,
       output: outPath,
       verbose: opts.verbose,
+      tmpDir: path.join(projectDir, ".vep-tmp"),
+      segmentId: seg.id,
     });
     log.text(`  → ${outPath}`);
   }

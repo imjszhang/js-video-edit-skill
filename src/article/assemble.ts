@@ -21,10 +21,19 @@ export async function runArticleAssemble(
   projectDir: string,
   opts: AssembleOptions = {}
 ): Promise<string> {
-  const timeline = loadTimeline(projectDir);
-  const config = loadVepConfig(projectDir);
   const trimmedDir = path.join(projectDir, "trimmed");
   ensureDir(trimmedDir);
+
+  const timelinePath = path.join(projectDir, "timeline.json");
+
+  if (opts.dryRun && !existsSync(timelinePath)) {
+    log.text("[dry-run] would load timeline.json");
+    log.scene("[dry-run] assemble complete (no timeline.json, no files written)");
+    return path.join(trimmedDir, "final.mp4");
+  }
+
+  const timeline = loadTimeline(projectDir);
+  const config = loadVepConfig(projectDir);
 
   const clipFiles: string[] = [];
   const audioFiles: string[] = [];
@@ -34,7 +43,7 @@ export async function runArticleAssemble(
     const audioPath = path.join(projectDir, seg.audio_trimmed);
     const clipPath = path.join(trimmedDir, `clip${String(seg.id).padStart(2, "0")}.mp4`);
 
-    if (!existsSync(visualPath)) {
+    if (!opts.dryRun && !existsSync(visualPath)) {
       log.error(`Missing visual: ${visualPath}. Run 'vep article screenshot' first.`);
       process.exit(1);
     }
@@ -88,7 +97,9 @@ export async function runArticleAssemble(
   log.text(`Audio track: ${audioFullPath}`);
 
   const muxedPath = path.join(trimmedDir, "muxed.mp4");
-  await muxVideoAudio(videoOnlyPath, audioFullPath, muxedPath);
+  await muxVideoAudio(videoOnlyPath, audioFullPath, muxedPath, {
+    duration: timeline.total_duration,
+  });
   log.text(`Muxed: ${muxedPath}`);
 
   const assSrc = path.join(projectDir, "subs.ass");

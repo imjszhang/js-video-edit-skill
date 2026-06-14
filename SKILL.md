@@ -242,6 +242,16 @@ await comm.save('output.mp3')
 
 ## ⚠️ 踩坑记录（必读）
 
+### 全文视频化（vep article）
+
+| 坑 | 解法 |
+|---|---|
+| `pipeline --from storyboard --to assemble` 无 `--write-template` | storyboard 步只输出 digest，pipeline 会自动退出；用 `--write-template` 或 `--from render` |
+| 音频段数 ≠ PNG 段数（如 20 audio / 14 scene） | `vep article recover` 会 Warning；补截图或合并分镜后再 assemble |
+| `--dry-run` 仍报缺 audio | 已修复：dry-run 跳过文件存在检查 |
+| TTS 旁白过长（Windows） | 超 2000 字自动写 `.vep-tmp/*.txt` 用 `--file` 调用 edge-tts |
+| 合成视频比音频短、尾部旁白被截 | mux 以 `timeline.total_duration` 为准，不用 `-shortest` |
+
 ### Windows / PowerShell
 
 | 坑 | 解法 |

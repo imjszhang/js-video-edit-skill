@@ -3,6 +3,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { ensureDir, log } from "../utils.js";
 import { writeDefaultVepConfig, PROJECT_DIRS } from "./config.js";
+import { loadStoryboard, validateSegmentFields } from "./storyboard.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SKILL_ROOT = path.resolve(__dirname, "../..");
@@ -75,10 +76,16 @@ export function runArticleInit(projectDir: string, force = false): void {
   log.scene(`Article project initialized at ${projectDir}`);
 }
 
-import { loadStoryboard, validateSegmentFields } from "./storyboard.js";
+export interface ValidateOptions {
+  storyboardFile?: string;
+  strict?: boolean;
+}
 
-export function runArticleValidate(projectDir: string, storyboardFile?: string): void {
-  const sbPath = storyboardFile ?? path.join(projectDir, "storyboard.json");
+export function runArticleValidate(
+  projectDir: string,
+  opts: ValidateOptions = {}
+): void {
+  const sbPath = opts.storyboardFile ?? path.join(projectDir, "storyboard.json");
 
   const sb = loadStoryboard(projectDir, sbPath);
   const warnings: string[] = [];
@@ -89,6 +96,10 @@ export function runArticleValidate(projectDir: string, storyboardFile?: string):
 
   if (warnings.length > 0) {
     for (const w of warnings) log.text(`Warning: ${w}`);
+    if (opts.strict) {
+      log.error(`Validation failed with ${warnings.length} warning(s) (--strict)`);
+      process.exit(1);
+    }
   }
 
   log.scene(`storyboard.json valid — ${sb.segments.length} segment(s)`);

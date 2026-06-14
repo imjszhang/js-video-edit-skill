@@ -1,34 +1,19 @@
 #!/usr/bin/env node
-import { Command } from "commander";
-import { applyLut } from "../src/ffmpeg.js";
-import { ensureDir, log } from "../src/utils.js";
+/** @deprecated Use `vep grade` */
+import { spawnSync } from "child_process";
 import path from "path";
+import { fileURLToPath } from "url";
 
-const program = new Command();
+console.warn("scripts/grade.ts is deprecated — use: vep grade");
 
-program
-  .name("vep grade")
-  .description("Apply LUT color grading to a video file")
-  .argument("<input>", "Input video file")
-  .argument("<lutFile>", "Path to .cube LUT file")
-  .argument("[output]", "Output file path")
-  .action(async (input: string, lutFile: string, output?: string) => {
-    if (!output) {
-      const parsed = path.parse(input);
-      output = path.join(parsed.dir, `${parsed.name}_graded.mp4`);
-    }
-
-    log.color(`Applying LUT: ${path.basename(lutFile)}`);
-    log.color(`  Input:  ${path.basename(input)}`);
-    log.color(`  Output: ${path.basename(output)}`);
-
-    try {
-      await applyLut(input, lutFile, output);
-      log.color("Color grading complete");
-    } catch (err) {
-      log.error(`Failed: ${err}`);
-      process.exit(1);
-    }
-  });
-
-program.parse();
+const result = spawnSync(
+  "npx",
+  [
+    "tsx",
+    path.join(path.dirname(fileURLToPath(import.meta.url)), "cli.ts"),
+    "grade",
+    ...process.argv.slice(2),
+  ],
+  { stdio: "inherit", shell: true }
+);
+process.exit(result.status ?? 1);

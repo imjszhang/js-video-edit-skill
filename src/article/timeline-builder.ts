@@ -51,7 +51,7 @@ export async function runArticleTimeline(
       `scene${String(seg.id).padStart(2, "0")}.png`
     );
 
-    if (!existsSync(rawPath)) {
+    if (!opts.dryRun && !existsSync(rawPath)) {
       log.error(`Missing audio: ${rawPath}. Run 'vep article tts' first.`);
       process.exit(1);
     }

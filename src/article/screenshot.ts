@@ -4,6 +4,7 @@ import path from "path";
 import { createRequire } from "module";
 import { log } from "../utils.js";
 import { loadVepConfig } from "./config.js";
+import { sortBySegmentId } from "./segment-files.js";
 
 const require = createRequire(import.meta.url);
 
@@ -121,9 +122,10 @@ export async function runArticleScreenshot(
   const tabDelay = opts.tabDelay ?? config.screenshotTabDelay;
   const retries = opts.retries ?? 1;
 
-  const htmlFiles = readdirSync(scenesDir)
-    .filter((f) => f.endsWith(".html"))
-    .sort();
+  const htmlFiles = sortBySegmentId(
+    readdirSync(scenesDir).filter((f) => f.endsWith(".html")),
+    "scene"
+  );
 
   if (htmlFiles.length === 0) {
     log.error(`No HTML scenes in ${scenesDir}. Run 'vep article render' first.`);

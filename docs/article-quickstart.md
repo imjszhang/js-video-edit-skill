@@ -44,15 +44,41 @@ vep article storyboard ./my-video-project --write-template
 
 ```bash
 vep article validate ./my-video-project
+vep article validate ./my-video-project --strict   # CI：有 warning 则 exit 1
 ```
 
 ## 3. 端到端合成
+
+已有 `storyboard.json` 时（推荐入口）：
 
 ```bash
 vep article pipeline ./my-video-project
 ```
 
-默认执行 `render → screenshot → tts → timeline → assemble`。
+默认执行 `render → screenshot → tts → timeline → assemble`（`--from render`）。
+
+### storyboard 步骤说明
+
+`storyboard` 步只向 stdout 输出 digest，**不会**自动更新 `storyboard.json`：
+
+```bash
+# 仅生成 digest（pipeline 在此停止，除非加了 --write-template）
+vep article pipeline ./project --from storyboard --to storyboard
+
+# 写出初稿 storyboard.json 后可继续全流程
+vep article pipeline ./project --from storyboard --write-template
+```
+
+**不要**在无 `--write-template` 时执行 `--from storyboard --to assemble`，pipeline 会退出并提示。
+
+### 预览（dry-run）
+
+不写入文件、不检查 audio/PNG 是否存在：
+
+```bash
+vep --dry-run article timeline ./my-video-project
+vep --dry-run article assemble ./my-video-project
+```
 
 ### 分步执行
 
@@ -92,6 +118,7 @@ vep article pipeline ./my-video-project --skip-tts
 
 ```bash
 vep article recover ./my-video-project
+# 若音频段数 ≠ PNG 段数，recover 会输出 Warning（如 KL52：20 音频 / 14 画面）
 # 校对 storyboard.json 中的 narration
 vep article timeline ./my-video-project
 vep article assemble ./my-video-project
