@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "title": "龙虾不需要 Fable 5 也能剪视频",
+  "badge": "KL52 · 养虾日记",
+  "width": 1080,
+  "height": 1920,
+  "fps": 24,
+  "voice": "zh-CN-YunxiNeural",
+  "segments": [
+    {
+      "id": 1,
+      "visual_type": "hero",
+      "narration": "龙虾不需要 Fable 5 也能剪视频。这是一期养虾日记。",
+      "text": "龙虾不需要 Fable 5\n也能剪视频",
+      "subtitle": "KL52 · 养虾日记",
+      "reason": "封面镜，建立话题",
+      "candidates": [
+        { "visual_type": "text-card", "reason_rejected": "封面冲击力不足" }
+      ],
+      "selected": "hero"
+    },
+    {
+      "id": 2,
+      "visual_type": "text-card",
+      "narration": "编辑决策可以写成 JSON，ffmpeg 负责执行。",
+      "heading": "文本驱动剪辑",
+      "body": "编辑决策写成 JSON\nffmpeg 负责执行",
+      "reason": "核心观点，用 text-card 呈现",
+      "selected": "text-card"
+    },
+    {
+      "id": 3,
+      "visual_type": "code-block",
+      "narration": "运行 vep article pipeline 一条命令合成视频。",
+      "heading": "一键合成",
+      "code": "vep article pipeline ./project\n  --from render --to assemble",
+      "reason": "代码块展示 CLI 命令",
+      "selected": "code-block"
+    }
+  ]
+}

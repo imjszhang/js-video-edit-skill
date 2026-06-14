@@ -257,3 +257,197 @@ function formatTime(seconds: number): string {
     .toString()
     .padStart(3, "0")}`;
 }
+
+export interface SilenceRemoveOptions {
+  stopThreshold?: string;
+  stopDuration?: number;
+  stopSilence?: number;
+}
+
+/**
+ * Remove trailing silence from audio using silenceremove filter.
+ */
+export async function silenceRemove(
+  input: string,
+  output: string,
+  opts: SilenceRemoveOptions = {}
+): Promise<void> {
+  const {
+    stopThreshold = "-50dB",
+    stopDuration = 0.2,
+    stopSilence = 0.1,
+  } = opts;
+  ensureDir(path.dirname(output));
+
+  const af = `silenceremove=start_periods=0:stop_periods=-1:stop_threshold=${stopThreshold}:stop_duration=${stopDuration}:stop_silence=${stopSilence}`;
+
+  await runCommand("ffmpeg", [
+    "-y",
+    "-i",
+    crossPath(input),
+    "-af",
+    af,
+    "-c:a",
+    "libmp3lame",
+    "-b:a",
+    "128k",
+    crossPath(output),
+  ]);
+}
+
+export interface ImageToVideoOptions {
+  width?: number;
+  height?: number;
+  fps?: number;
+}
+
+/**
+ * Create a video from a static image with specified duration.
+ */
+export async function imageToVideo(
+  imagePath: string,
+  duration: number,
+  output: string,
+  opts: ImageToVideoOptions = {}
+): Promise<void> {
+  const { width = 1080, height = 1920, fps = 24 } = opts;
+  ensureDir(path.dirname(output));
+
+  await runCommand("ffmpeg", [
+    "-y",
+    "-loop",
+    "1",
+    "-i",
+    crossPath(imagePath),
+    "-c:v",
+    "libx264",
+    "-t",
+    duration.toString(),
+    "-pix_fmt",
+    "yuv420p",
+    "-vf",
+    `scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2`,
+    "-r",
+    fps.toString(),
+    "-an",
+    crossPath(output),
+  ]);
+}
+
+/**
+ * Mux video and audio streams.
+ */
+export async function muxVideoAudio(
+  videoPath: string,
+  audioPath: string,
+  output: string
+): Promise<void> {
+  ensureDir(path.dirname(output));
+  await runCommand("ffmpeg", [
+    "-y",
+    "-i",
+    crossPath(videoPath),
+    "-i",
+    crossPath(audioPath),
+    "-c:v",
+    "copy",
+    "-c:a",
+    "aac",
+    "-b:a",
+    "192k",
+    "-shortest",
+    crossPath(output),
+  ]);
+}
+
+/**
+ * Burn ASS subtitles (Windows-friendly: use relative ass filename in same dir).
+ */
+export async function burnAss(
+  input: string,
+  assFileName: string,
+  output: string
+): Promise<void> {
+  ensureDir(path.dirname(output));
+  const workDir = path.dirname(input);
+  const inputName = path.basename(input);
+  const outputName = path.basename(output);
+
+  await runCommand(
+    "ffmpeg",
+    [
+      "-y",
+      "-i",
+      inputName,
+      "-vf",
+      `ass=${assFileName}`,
+      "-c:a",
+      "copy",
+      "-movflags",
+      "+faststart",
+      outputName,
+    ],
+    { cwd: workDir }
+  );
+}
+
+/**
+ * Generate silent audio of given duration.
+ */
+export async function generateSilence(
+  duration: number,
+  output: string,
+  sampleRate = 44100
+): Promise<void> {
+  ensureDir(path.dirname(output));
+  await runCommand("ffmpeg", [
+    "-y",
+    "-f",
+    "lavfi",
+    "-i",
+    `anullsrc=r=${sampleRate}:cl=stereo`,
+    "-t",
+    duration.toString(),
+    "-c:a",
+    "aac",
+    "-b:a",
+    "128k",
+    crossPath(output),
+  ]);
+}
+
+/**
+ * Concatenate audio files with re-encode to uniform format.
+ */
+export async function concatAudio(
+  fileList: string,
+  output: string
+): Promise<void> {
+  ensureDir(path.dirname(output));
+  await runCommand("ffmpeg", [
+    "-y",
+    "-f",
+    "concat",
+    "-safe",
+    "0",
+    "-i",
+    crossPath(fileList),
+    "-c:a",
+    "aac",
+    "-b:a",
+    "192k",
+    "-ar",
+    "44100",
+    "-ac",
+    "2",
+    crossPath(output),
+  ]);
+}
+
+/**
+ * Get audio duration via ffprobe.
+ */
+export async function probeAudioDuration(input: string): Promise<number> {
+  const info = await getMediaInfo(input);
+  return info.duration;
+}

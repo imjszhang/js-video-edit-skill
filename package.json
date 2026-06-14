@@ -1,28 +1,31 @@
 {
   "name": "js-video-edit-skill",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Text-driven video editing pipeline using open-source tools",
   "license": "MIT",
   "type": "module",
   "bin": {
-    "vep": "./dist/scripts/pipeline.js"
+    "vep": "./dist/scripts/cli.js"
   },
   "scripts": {
-    "transcribe": "tsx scripts/transcribe.ts",
-    "analyze": "tsx scripts/analyze.ts",
-    "cut": "tsx scripts/cut.ts",
-    "grade": "tsx scripts/grade.ts",
-    "subtitle": "tsx scripts/subtitle.ts",
-    "render": "tsx scripts/render.ts",
-    "generate-luts": "tsx scripts/generate-luts.ts",
-    "pipeline": "tsx scripts/pipeline.ts",
-    "test": "tsx tests/decision.test.ts",
+    "vep": "tsx scripts/cli.ts",
+    "transcribe": "tsx scripts/cli.ts transcribe",
+    "analyze": "tsx scripts/cli.ts analyze",
+    "cut": "tsx scripts/cli.ts cut",
+    "grade": "tsx scripts/cli.ts grade",
+    "subtitle": "tsx scripts/cli.ts subtitle",
+    "encode": "tsx scripts/cli.ts encode",
+    "generate-luts": "tsx scripts/cli.ts generate-luts",
+    "pipeline": "tsx scripts/cli.ts pipeline",
+    "article": "tsx scripts/cli.ts article",
+    "test": "tsx tests/decision.test.ts && tsx tests/storyboard.test.ts && tsx tests/ass.test.ts && tsx tests/timeline.test.ts",
     "build": "tsc",
     "lint": "tsc --noEmit"
   },
   "dependencies": {
     "commander": "^12.1.0",
     "pino": "^9.5.0",
+    "sharp": "^0.33.5",
     "zod": "^3.23.8"
   },
   "devDependencies": {

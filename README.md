@@ -71,7 +71,9 @@ vep --help
 
 ## Commands
 
-### Full Pipeline
+Unified CLI entry: `vep <command>`. Run `vep --help` for full list.
+
+### Mode A: Footage Editing
 
 ```bash
 vep pipeline ./raw ./output \
@@ -84,30 +86,59 @@ vep pipeline ./raw ./output \
   --final-encode --crf 18
 ```
 
+| Command | Description |
+|---------|-------------|
+| `vep pipeline <inputDir> [outputDir]` | Full footage pipeline |
+| `vep transcribe <dir> [outputDir]` | Transcribe all videos |
+| `vep analyze <transcriptsDir>` | Output analysis digest for LLM |
+| `vep cut <decision.json> [outputDir]` | Execute ffmpeg cuts |
+| `vep grade <input> <lut> [output]` | Apply LUT color grading |
+| `vep subtitle <input> <transcript> [output]` | Generate and burn subtitles |
+| `vep encode <input> [output]` | Final encode |
+| `vep render <input> [output]` | Deprecated alias for `encode` |
+| `vep generate-luts [dir]` | Generate preset LUT files |
+| `vep info <file>` | Show media info via ffprobe |
+
+### Mode B: Article-to-Video
+
+See [docs/article-quickstart.md](docs/article-quickstart.md) for full guide.
+
+```bash
+vep article init ./project
+vep article storyboard ./project          # digest for LLM → storyboard.json
+vep article validate ./project
+vep article pipeline ./project            # render → screenshot → tts → timeline → assemble
+```
+
+| Command | Description |
+|---------|-------------|
+| `vep article init <projectDir>` | Initialize project structure + templates |
+| `vep article storyboard <projectDir>` | Analyze article.md, output LLM digest |
+| `vep article validate <projectDir>` | Validate storyboard.json |
+| `vep article render <projectDir>` | Render HTML scenes |
+| `vep article screenshot <projectDir>` | JS-Eyes PNG capture |
+| `vep article tts <projectDir>` | edge-tts audio generation |
+| `vep article timeline <projectDir>` | Build timeline.json + subs.ass |
+| `vep article assemble <projectDir>` | Compose final.mp4 |
+| `vep article recover <projectDir>` | Recover from existing audio/scenes |
+| `vep article pipeline <projectDir>` | End-to-end with `--from` / `--to` |
+
+**Data layers:** `storyboard.json` (intent) → `timeline.json` (audio-authoritative) → `subs.ass` + `shot-list.json` (post-production)
+
+### Footage Pipeline Options
+
 | Option | Description | Default |
 |--------|-------------|---------|
 | `<inputDir>` | Raw video files directory | — |
 | `[outputDir]` | Output directory | `./output` |
-| `--model` | Whisper model (tiny/base/small/medium/large) | `base` |
-| `--language` | Language code (en, zh, ja, etc.) | auto-detect |
+| `--model` | Whisper model | `base` |
+| `--language` | Language code | auto-detect |
 | `--decision` | Editing decision JSON path | — |
-| `--fast-cuts` | Use stream copy (faster, keyframe-limited) | false |
+| `--fast-cuts` | Use stream copy | false |
 | `--lut` | LUT file for color grading | none |
 | `--subtitles` | Burn subtitles from transcript | false |
 | `--final-encode` | Run final quality encode | false |
-| `--crf` | CRF for final encode (lower = better) | `18` |
-
-### Individual Steps
-
-| Command | Description |
-|---------|-------------|
-| `vep transcribe <dir>` | Transcribe all videos in directory |
-| `vep analyze <dir>` | Read transcripts, print suggested decisions as JSON |
-| `vep cut <decision.json>` | Execute ffmpeg cuts from decision file |
-| `vep grade <input> <lut> [output]` | Apply LUT color grading |
-| `vep subtitle <input> <transcript> [output]` | Generate and burn subtitles |
-| `vep render <input> [output]` | Final encode |
-| `vep generate-luts [dir]` | Generate preset LUT files |
+| `--crf` | CRF for final encode | `18` |
 
 ## Editing Decision Format
 
@@ -210,6 +241,7 @@ Once decisions are text, any text-reading agent can execute them. The tools are 
 
 PRs welcome. Key areas for improvement:
 
+- [x] Article-to-video CLI (`vep article`)
 - [ ] Support for more transcription engines (AssemblyAI, Groq Whisper)
 - [ ] Auto-detect scene boundaries from transcript
 - [ ] Figma MCP integration for design sync

@@ -104,19 +104,19 @@ ffmpeg -i graded.mp4 -c:v libx264 -preset slow -crf 18 -pix_fmt yuv420p -r 24 -s
 
 ## 模式 B：全文视频化 Pipeline
 
-> 把文章变成视频，不需要任何视频素材。
+> 把文章变成视频，不需要任何视频素材。使用 `vep article` CLI（TypeScript 实现）。
 
 ### 核心流程
 
 ```
 article.md
-  → script.json（分段脚本，定义每段画面+文字+时长）
-    → HTML 模板渲染（6 种布局）
+  → storyboard.json（分镜脚本：画面 + narration + 编辑决策）
+    → HTML 模板渲染（7 种布局）
       → JS-Eyes 浏览器截图（PNG）
         → edge-tts 生成语音（MP3）
-          → ffmpeg silenceremove 剪掉静音间隔
+          → silenceremove 剪静音 → timeline.json + subs.ass
             → ffmpeg 合成（画面 + 字幕 + 音频）
-              → final.mp4
+              → trimmed/final.mp4
 ```
 
 ### 项目结构
@@ -124,45 +124,37 @@ article.md
 ```
 project/
 ├── article.md              # 原始文章
-├── script.json             # 分段脚本（LLM 生成）
+├── storyboard.json         # 分镜脚本（LLM 生成，含 narration）
+├── timeline.json           # 时间轴（自动生成，音频权威）
+├── subs.ass                # 字幕（自动生成）
+├── shot-list.json          # 编辑决策摘要（自动生成）
+├── vep.config.json         # 可选配置（voice、JS-Eyes 等）
 ├── templates/              # HTML 布局模板
-│   ├── hero.html           # 封面/标题页
-│   ├── text-card.html      # 纯文字卡片
-│   ├── quote-card.html     # 引用卡片
-│   ├── code-block.html     # 代码块卡片
-│   ├── comparison.html     # 对比卡片
-│   └── step-diagram.html   # 步骤列表
 ├── scenes/                 # 渲染的 HTML + 截图 PNG
 ├── audio/                  # TTS 语音 MP3
-├── trimmed/                # 剪过静音的音频 + 最终视频
-├── render.py               # HTML 模板渲染（Python）
-├── screenshot.js           # JS-Eyes 浏览器截图
-└── make_video.py           # 完整合成脚本
+└── trimmed/                # 剪过静音的音频 + 最终视频
 ```
 
-### script.json 格式
+### storyboard.json 格式
 
 ```json
 {
+  "version": 1,
   "title": "视频标题",
   "badge": "可选徽章文字",
   "width": 1080,
   "height": 1920,
   "fps": 24,
+  "voice": "zh-CN-YunxiNeural",
   "segments": [
     {
       "id": 1,
       "visual_type": "hero",
+      "narration": "旁白全文，TTS 和字幕唯一来源",
       "text": "主标题\n副标题",
       "subtitle": "副标题文字",
-      "duration": 5
-    },
-    {
-      "id": 2,
-      "visual_type": "text-card",
-      "heading": "卡片标题",
-      "body": "正文内容。\n支持换行。",
-      "duration": 6
+      "reason": "封面镜，建立话题",
+      "selected": "hero"
     }
   ]
 }
@@ -170,20 +162,32 @@ project/
 
 visual_type 可选值：`hero` | `text-card` | `quote-card` | `code-block` | `comparison` | `step-diagram` | `ending`
 
-> **注意**：`badge` 字段控制封面页左上角标签，不传则不显示。不要再硬编码。
+> **注意**：`narration` 是 TTS 和字幕的唯一数据源。`duration` 已废弃，时长由 `vep article timeline` 从实测音频生成。
 
 ### 执行步骤
 
 ```bash
-# 1. 渲染 HTML 场景
-python render.py
+# 初始化项目
+vep article init ./project
 
-# 2. JS-Eyes 截图（需要 Firefox + JS-Eyes 扩展运行中）
-node screenshot.js
+# 分析文章，生成 digest 供 Agent 写 storyboard.json
+vep article storyboard ./project
 
-# 3. 生成 TTS 语音 + 完整合成
-python make_video.py
+# 校验 + 端到端合成
+vep article validate ./project
+vep article pipeline ./project
+
+# 或分步执行
+vep article render ./project
+vep article screenshot ./project
+vep article tts ./project
+vep article timeline ./project
+vep article assemble ./project
 ```
+
+详细指南见 `docs/article-quickstart.md`，分镜规则见 `docs/storyboard-rules.md`。
+
+> **Deprecated**：`render.py` / `screenshot.js` / `make_video.py` 已由 `vep article` 命令取代。
 
 ### 语音剪枝
 
@@ -338,10 +342,9 @@ body{min-width:1080px;min-height:1920px;background:#000;display:flex;align-items
 
 ### 全文视频化模式
 ```
-文章在 article.md。
-请生成分段脚本 script.json，用 6 种 HTML 模板渲染画面，
-JS-Eyes 截图，edge-tts 生成语音，剪掉静音间隔，
-最终合成带语音+字幕的视频。
+文章在 article.md，项目目录 ./project。
+请运行 vep article storyboard ./project 获取 digest，
+生成 storyboard.json 后执行 vep article pipeline ./project。
 ```
 
 ---
@@ -363,16 +366,19 @@ JS-Eyes 截图，edge-tts 生成语音，剪掉静音间隔，
 执行全文视频化 pipeline，项目目录：D:/path/to/project
 
 步骤：
-1. python render.py → 渲染 HTML
-2. node screenshot.js → JS-Eyes 截图
-3. 对每个 seg 生成 TTS → ffmpeg silenceremove 剪枝
-4. ffmpeg 合成：画面 + 字幕 + 音频
+vep article pipeline D:/path/to/project
+
+或分步：
+1. vep article render → HTML
+2. vep article screenshot → JS-Eyes PNG
+3. vep article tts → edge-tts MP3
+4. vep article timeline → timeline.json + subs.ass
+5. vep article assemble → trimmed/final.mp4
 
 要求：
-- 截图后用 Python 验证居中：h_offset < ±20px
+- 截图后用 sharp 验证居中：h_offset < ±20px
 - 字幕用 ASS 格式，PlayResX=1080
 - 最终视频输出到 project/trimmed/final.mp4
-- 复制到 workspace 目录以便发送
 ```
 
 ### 素材剪辑模式：可直接在主会话执行
