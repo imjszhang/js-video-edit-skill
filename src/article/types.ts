@@ -102,8 +102,8 @@ export const VepConfigSchema = z.object({
   silenceThreshold: z.string().default("-50dB"),
   silenceDuration: z.number().default(0.2),
   silencePadding: z.number().default(0.1),
-  subtitleFontSize: z.number().int().positive().default(48),
-  subtitleMarginV: z.number().int().positive().default(100),
+  subtitleFontSize: z.number().int().positive().default(54),
+  subtitleMarginV: z.number().int().positive().default(115),
   color_profile: z.string().optional(),
 });
 

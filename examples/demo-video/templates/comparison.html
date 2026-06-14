@@ -1,27 +1,9 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-<meta charset="UTF-8">
-<style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{min-width:1080px;min-height:1920px;background:#000;display:flex;align-items:center;justify-content:center;overflow:hidden;font-family:"Microsoft YaHei",sans-serif}
-.wrapper{width:1080px;height:1920px;position:relative;background:#0a0a0a;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 50px}
-.grid{position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.03) 1px,transparent 1px);background-size:50px 50px}
-.heading{color:#FCD228;font-size:52px;font-weight:bold;margin-bottom:50px;text-align:center;width:100%}
-.col{width:100%;padding:40px;background:rgba(255,255,255,.05);border-radius:12px;margin-bottom:30px}
-.col-title{font-size:40px;font-weight:bold;margin-bottom:24px}
-.left .col-title{color:#FF6B6B}
-.right .col-title{color:#44FF44}
-.col ul{list-style:none;padding:0}
-.col li{color:#fff;font-size:34px;line-height:1.6;padding:12px 0;border-bottom:1px solid rgba(255,255,255,.08)}
-</style>
-</head>
-<body>
-<div class="wrapper">
-<div class="grid"></div>
-{{#heading}}<h2 class="heading">{{heading}}</h2>{{/heading}}
-<div class="col left"><div class="col-title">{{left_title}}</div><ul>{{{left_items}}}</ul></div>
-<div class="col right"><div class="col-title">{{right_title}}</div><ul>{{{right_items}}}</ul></div>
+{{#heading}}<h2 class="vep-compare-heading">{{heading}}</h2>{{/heading}}
+<div class="vep-compare-col vep-compare-col-left">
+<div class="vep-compare-title">{{left_title}}</div>
+<ul>{{{left_items}}}</ul>
 </div>
-</body>
-</html>
+<div class="vep-compare-col vep-compare-col-right">
+<div class="vep-compare-title">{{right_title}}</div>
+<ul>{{{right_items}}}</ul>
+</div>

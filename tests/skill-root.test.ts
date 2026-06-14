@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import {
   resolveSkillRoot,
   BUNDLED_JS_EYES_CLIENT,
+  BUNDLED_JS_LOGO,
   BUNDLED_TEMPLATES,
 } from "../src/skill-root.js";
 
@@ -25,6 +26,8 @@ test("resolveSkillRoot from src/article path", () => {
   assert.ok(root.endsWith("js-video-edit-skill") || root.includes("js-video-edit-skill"));
   assert.ok(BUNDLED_JS_EYES_CLIENT.includes(path.join("lib", "js-eyes-client.js")));
   assert.ok(BUNDLED_TEMPLATES.includes(path.join("templates", "article")));
+  assert.ok(BUNDLED_JS_LOGO.includes(path.join("lib", "js-logo.svg")));
+  assert.ok(existsSync(BUNDLED_JS_LOGO));
 });
 
 test("resolveSkillRoot from dist/src/article path", () => {

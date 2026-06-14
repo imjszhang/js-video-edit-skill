@@ -33,4 +33,5 @@ export function resolveSkillRoot(fromModuleUrl: string): string {
 
 export const SKILL_ROOT = resolveSkillRoot(import.meta.url);
 export const BUNDLED_JS_EYES_CLIENT = path.join(SKILL_ROOT, "lib", "js-eyes-client.js");
+export const BUNDLED_JS_LOGO = path.join(SKILL_ROOT, "lib", "js-logo.svg");
 export const BUNDLED_TEMPLATES = path.join(SKILL_ROOT, "templates", "article");

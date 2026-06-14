@@ -271,41 +271,27 @@ vep article tts ./project --voice zh-CN-YunxiNeural
 
 ### HTML 模板设计规范
 
-**核心教训 1**：用正则暴力替换所有 CSS width/height，导致小元素（如 40px 序号）被改成画布尺寸，所有模板全坏。
+模板位于 `templates/article/`（Neo-brutalist 竖屏风格，参考 Cyber-Taoist 海报体系）。`vep article render` 会注入 `_design-system.css`、本地 Web 字体；**JS LOGO**（`lib/js-logo.svg`）**仅出现在封面 `hero`**，与 badge 同一行（LOGO 在左、标签在右，约 40px），标题单独一行。
 
-**核心教训 2**：body 设 `width:1080px; height:1920px` 在 Firefox 里**不居中**——Firefox 视口比 1080px 宽，body 默认左对齐。
+**竖屏安全区（1080×1920）：**
+- **顶区**：badge（`hero`/`ending`）
+- **中部**：`.vep-body` 主内容（`padding-top:112px; padding-bottom:168px`）
+- **底部 ~168px**：留给 ASS 烧录字幕，画面不放关键信息
 
-**核心教训 3**：横屏 PPT 思维在竖屏上内容使用率极低（hero 仅 16%W×20%H）。必须专为竖屏设计：大字 + 填满宽度。
+**核心教训 1**：用正则暴力替换所有 CSS width/height，导致小元素（如序号块）被改成画布尺寸，所有模板全坏。
 
-**竖屏 HTML 模板标准结构：**
-```css
-/* body 用 min-width/min-height + flexbox 居中，不要用固定 width/height */
-body{min-width:1080px;min-height:1920px;background:#000;display:flex;align-items:center;justify-content:center;overflow:hidden}
-/* 内容放在 .wrapper 里，确保 1080x1920 画布居中 */
-.wrapper{width:1080px;height:1920px;position:relative;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center}
-/* 网格背景 */
-.grid{position:absolute;inset:0;background-size:50px 50px}
-/* 容器填满宽度，不要用 max-width 限制 */
-.card{padding:55px 50px;width:100%}
-```
+**核心教训 2**：body 用 `min-width/min-height` + flexbox 居中；内容在 `.wrapper` 1080×1920 内。
 
-**竖屏内容使用率标准：**
+**核心教训 3**：横屏 PPT 思维在竖屏上内容使用率极低。必须专为竖屏设计：大字 + 填满宽度。
 
-| 元素 | 字号 | 目标使用率 |
-|------|------|----------|
-| 标题（hero） | 60-72px（根据行数动态） | 宽度 30%+, 高度 25%+ |
-| 卡片标题 | 52-60px | 宽度 80%+ |
-| 正文 | 36-44px | 高度 50%+ |
-| 代码 | 26-28px | 宽度 80%+ |
-| 列表项 | 32-34px | 宽度 80%+ |
+**字体**：Space Grotesk（标题/正文）+ JetBrains Mono（标签/终端）；字幕仍用 ASS 微软雅黑。
 
-**竖屏设计规则：**
-1. 标题 60-72px，正文 36-44px（比横屏大 40-60%）
-2. 容器宽度 100%（不要用 max-width 限制）
-3. comparison 用**上下堆叠**（竖屏左右太挤）
-4. step-diagram 用 `display:flex` 让步骤项填满宽度
-5. 上下 padding 50-70px，减少留白
-6. 截图验证：内容 h_offset < ±20px，宽度使用率 > 30%
+**竖屏设计规则（TikTok 向）：**
+1. 画面字短于旁白；底区 168px padding 留给 ASS（默认 `subtitleFontSize: 54`, `marginV: 115`）
+2. 封面 `hero`：JS LOGO 与 badge 横排（非全镜水印）；无中文 global uppercase
+3. `quote-card` / `ending` 使用黄底反色 `.vep-invert` 冲击镜
+4. comparison 右列强化、左列弱化；每侧 storyboard ≤2 条
+5. 截图校验：左对齐镜（hero/text-card/quote/ending）查 **宽度使用率 ≥55%**；居中镜查 **h_offset < ±20px**
 
 ### ffmpeg 字幕烧录（Windows 必踩）
 

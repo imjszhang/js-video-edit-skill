@@ -49,4 +49,15 @@ test("cuesToAss uses custom resolution", () => {
   assert.ok(ass.includes(",32,"));
 });
 
+test("cuesToAss uses TikTok default font size and margin", () => {
+  const ass = cuesToAss([{ start: 0, end: 3, text: "字幕" }], {
+    playResX: 1080,
+    playResY: 1920,
+    fontSize: 54,
+    marginV: 115,
+  });
+  assert.ok(ass.includes(",54,"));
+  assert.ok(ass.includes(",115,"));
+});
+
 console.log("\n✅ All ASS tests passed.");

@@ -1,24 +1,10 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-<meta charset="UTF-8">
-<style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{min-width:1080px;min-height:1920px;background:#000;display:flex;align-items:center;justify-content:center;overflow:hidden;font-family:"Consolas","Microsoft YaHei",monospace}
-.wrapper{width:1080px;height:1920px;position:relative;background:#0a0a0a;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 50px}
-.grid{position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.03) 1px,transparent 1px);background-size:50px 50px}
-.card{width:100%;padding:50px;background:#111;border:1px solid #333;border-radius:8px}
-.heading{color:#FCD228;font-size:44px;margin-bottom:30px;font-family:"Microsoft YaHei",sans-serif}
-.code{color:#44FF44;font-size:28px;line-height:1.5;white-space:pre-wrap;word-break:break-all}
-</style>
-</head>
-<body>
-<div class="wrapper">
-<div class="grid"></div>
-<div class="card">
-{{#heading}}<div class="heading">{{heading}}</div>{{/heading}}
-<div class="code">{{{code}}}</div>
+<div class="vep-terminal">
+<div class="vep-terminal-bar">
+<div class="vep-terminal-dots"><span class="vep-terminal-dot"></span><span class="vep-terminal-dot"></span><span class="vep-terminal-dot"></span></div>
+<span class="vep-terminal-session">{{session}}</span>
+</div>
+<div class="vep-terminal-body">
+{{#heading}}<div><span class="vep-code-prompt">$ </span><span class="vep-code-text">{{heading}}</span></div>{{/heading}}
+<div class="vep-code-text">{{{code}}}</div>
 </div>
 </div>
-</body>
-</html>

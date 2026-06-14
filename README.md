@@ -101,6 +101,8 @@ vep pipeline ./raw ./output \
 
 ### Mode B: Article-to-Video
 
+Neo-brutalist vertical templates (1080×1920): Space Grotesk + JetBrains Mono, yellow/black palette. The **JS LOGO** appears **only on the hero cover**, inline before the title (not a per-frame watermark), keeping the bottom safe zone for ASS subtitles.
+
 See [docs/article-quickstart.md](docs/article-quickstart.md) for full guide.
 
 ```bash

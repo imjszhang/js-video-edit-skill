@@ -1,7 +1,15 @@
 import { readFileSync, existsSync } from "fs";
 import path from "path";
-import { StoryboardSchema, type Storyboard } from "./types.js";
+import { StoryboardSchema, type Storyboard, type VisualType } from "./types.js";
 import { log } from "../utils.js";
+
+/** TikTok-style left-aligned layouts — screenshot validation uses width usage, not h_offset */
+export const LEFT_ALIGN_VISUAL_TYPES: readonly VisualType[] = [
+  "hero",
+  "text-card",
+  "quote-card",
+  "ending",
+];
 
 export function collectStoryboardWarnings(jsonStr: string): { storyboard: Storyboard; warnings: string[] } {
   const parsed = JSON.parse(jsonStr);
@@ -50,11 +58,12 @@ export function loadStoryboard(projectDir: string, filePath?: string): Storyboar
 
 export function validateSegmentFields(seg: Storyboard["segments"][number]): string[] {
   const warnings: string[] = [];
-  const vt = seg.visual_type === "ending" ? "hero" : seg.visual_type;
+  const vt = seg.visual_type;
 
   switch (vt) {
     case "hero":
-      if (!seg.text) warnings.push(`segment ${seg.id}: hero missing 'text'`);
+    case "ending":
+      if (!seg.text) warnings.push(`segment ${seg.id}: ${vt} missing 'text'`);
       break;
     case "text-card":
       if (!seg.heading && !seg.body) {

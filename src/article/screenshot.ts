@@ -3,6 +3,8 @@ import path from "path";
 import { log } from "../utils.js";
 import { loadVepConfig } from "./config.js";
 import { VepConfigSchema } from "./types.js";
+import { loadStoryboard } from "./storyboard.js";
+import { LEFT_ALIGN_VISUAL_TYPES } from "./storyboard.js";
 import { sortBySegmentId, parseSegmentId, scenePngName } from "./segment-files.js";
 import {
   resolveScreenshotBackend,
@@ -20,9 +22,8 @@ export interface ScreenshotOptions {
   backend?: string;
 }
 
-async function validateCentering(
-  pngPath: string,
-  maxOffset = 20
+async function measureSceneContent(
+  pngPath: string
 ): Promise<{ hOffset: number; vOffset: number; usageW: number; usageH: number }> {
   try {
     const sharp = (await import("sharp")).default;
@@ -82,17 +83,34 @@ async function validateCentering(
     const usageW = ((r - l) / w) * 100;
     const usageH = ((b - t) / h) * 100;
 
-    if (Math.abs(hOffset) > maxOffset) {
-      log.text(
-        `Warning: ${path.basename(pngPath)} h_offset=${hOffset.toFixed(0)}px (max ±${maxOffset})`
-      );
-    }
-
     return { hOffset, vOffset, usageW, usageH };
   } catch {
     log.text(`Skipping centering validation for ${path.basename(pngPath)} (sharp not available)`);
     return { hOffset: 0, vOffset: 0, usageW: 0, usageH: 0 };
   }
+}
+
+export function evaluateSceneLayoutWarnings(
+  visualType: string | undefined,
+  metrics: { hOffset: number; usageW: number },
+  opts: { maxOffset?: number; minUsageW?: number } = {}
+): string[] {
+  const maxOffset = opts.maxOffset ?? 20;
+  const minUsageW = opts.minUsageW ?? 55;
+  const warnings: string[] = [];
+  const leftAlign =
+    visualType !== undefined &&
+    LEFT_ALIGN_VISUAL_TYPES.includes(visualType as typeof LEFT_ALIGN_VISUAL_TYPES[number]);
+
+  if (leftAlign) {
+    if (metrics.usageW < minUsageW) {
+      warnings.push(`usageW=${metrics.usageW.toFixed(0)}% (min ${minUsageW}%)`);
+    }
+  } else if (Math.abs(metrics.hOffset) > maxOffset) {
+    warnings.push(`h_offset=${metrics.hOffset.toFixed(0)}px (max ±${maxOffset})`);
+  }
+
+  return warnings;
 }
 
 export async function runArticleScreenshot(
@@ -115,6 +133,14 @@ export async function runArticleScreenshot(
   const port = opts.port ?? config.screenshotPort;
   const tabDelay = opts.tabDelay ?? config.screenshotTabDelay;
   const retries = opts.retries ?? 1;
+
+  let visualById: Map<number, string> | undefined;
+  try {
+    const storyboard = loadStoryboard(projectDir);
+    visualById = new Map(storyboard.segments.map((s) => [s.id, s.visual_type]));
+  } catch {
+    visualById = undefined;
+  }
 
   const htmlFiles = sortBySegmentId(
     readdirSync(scenesDir).filter((f) => f.endsWith(".html")),
@@ -158,7 +184,12 @@ export async function runArticleScreenshot(
         const segId = parseSegmentId(file, "scene");
         const pngName = segId !== null ? scenePngName(segId) : file.replace(".html", ".png");
         const pngPath = path.join(scenesDir, pngName);
-        const v = await validateCentering(pngPath);
+        const v = await measureSceneContent(pngPath);
+        const visualType = segId !== null ? visualById?.get(segId) : undefined;
+        const layoutWarnings = evaluateSceneLayoutWarnings(visualType, v);
+        for (const w of layoutWarnings) {
+          log.text(`Warning: ${pngName} ${w}`);
+        }
         log.text(
           `  ${pngName} h_offset=${v.hOffset >= 0 ? "+" : ""}${v.hOffset.toFixed(0)}px, usage=${v.usageW.toFixed(0)}%W x ${v.usageH.toFixed(0)}%H`
         );

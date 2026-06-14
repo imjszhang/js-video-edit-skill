@@ -201,13 +201,24 @@ async function assertBackendAvailable(
   }
 }
 
-function resolveSceneFile(scenesDir: string, fileName: string): string | null {
-  const safeName = path.basename(fileName);
-  const filePath = path.resolve(scenesDir, safeName);
-  if (!filePath.startsWith(path.resolve(scenesDir) + path.sep)) {
+function resolveSceneFile(scenesDir: string, urlPath: string): string | null {
+  const normalized = urlPath.replace(/^\/+/, "");
+  if (!normalized || normalized.includes("..")) return null;
+  const filePath = path.resolve(scenesDir, normalized);
+  const scenesRoot = path.resolve(scenesDir);
+  if (filePath !== scenesRoot && !filePath.startsWith(scenesRoot + path.sep)) {
     return null;
   }
   return filePath;
+}
+
+function sceneStaticContentType(filePath: string): string {
+  const ext = path.extname(filePath).toLowerCase();
+  if (ext === ".html") return "text/html;charset=utf-8";
+  if (ext === ".png") return "image/png";
+  if (ext === ".woff2") return "font/woff2";
+  if (ext === ".woff") return "font/woff";
+  return "application/octet-stream";
 }
 
 export function startSceneStaticServer(
@@ -215,12 +226,11 @@ export function startSceneStaticServer(
   port: number
 ): Promise<{ close: () => void }> {
   const server = createServer((req, res) => {
-    const rawName = (req.url ?? "/").split("?")[0]!.split("/").pop() ?? "";
-    const filePath = resolveSceneFile(scenesDir, rawName);
-    const ext = path.extname(rawName);
+    const urlPath = (req.url ?? "/").split("?")[0] ?? "/";
+    const filePath = resolveSceneFile(scenesDir, urlPath);
     if (filePath && existsSync(filePath)) {
       res.writeHead(200, {
-        "Content-Type": ext === ".html" ? "text/html;charset=utf-8" : "image/png",
+        "Content-Type": sceneStaticContentType(filePath),
       });
       res.end(readFileSync(filePath));
     } else {
