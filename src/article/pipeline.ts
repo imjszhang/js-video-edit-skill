@@ -28,6 +28,7 @@ export interface ArticlePipelineOptions {
   verbose?: boolean;
   dryRun?: boolean;
   writeTemplate?: boolean;
+  force?: boolean;
 }
 
 function stepIndex(step: ArticleStep): number {
@@ -57,11 +58,15 @@ export async function runArticlePipeline(
 
   try {
     if (shouldRun("init")) {
-      runArticleInit(projectDir);
+      runArticleInit(projectDir, Boolean(opts.force), Boolean(opts.dryRun));
     }
 
     if (shouldRun("storyboard")) {
-      runArticleStoryboard(projectDir, { writeTemplate: opts.writeTemplate });
+      runArticleStoryboard(projectDir, {
+        writeTemplate: opts.writeTemplate,
+        force: opts.force,
+        dryRun: opts.dryRun,
+      });
       if (!opts.writeTemplate && toIdx > stepIndex("storyboard")) {
         log.error(
           "storyboard step only outputs digest. Use --write-template to generate draft, or run with --from render after updating storyboard.json"
@@ -72,7 +77,7 @@ export async function runArticlePipeline(
     }
 
     if (shouldRun("render")) {
-      runArticleRender(projectDir, opts.storyboardFile);
+      runArticleRender(projectDir, opts.storyboardFile, { dryRun: opts.dryRun });
     }
 
     if (shouldRun("screenshot") && !opts.skipScreenshot) {

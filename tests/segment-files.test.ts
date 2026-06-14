@@ -3,6 +3,7 @@ import {
   parseSegmentId,
   sortBySegmentId,
   scenePngName,
+  sceneHtmlName,
 } from "../src/article/segment-files.js";
 
 function test(name: string, fn: () => void) {
@@ -47,6 +48,11 @@ test("sortBySegmentId handles scene html files", () => {
 test("scenePngName zero-pads id", () => {
   assert.strictEqual(scenePngName(1), "scene01.png");
   assert.strictEqual(scenePngName(14), "scene14.png");
+});
+
+test("sceneHtmlName zero-pads id", () => {
+  assert.strictEqual(sceneHtmlName(1), "scene01.html");
+  assert.strictEqual(sceneHtmlName(9), "scene09.html");
 });
 
 console.log("\n✅ All segment-files tests passed.");

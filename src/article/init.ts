@@ -1,9 +1,9 @@
-import { cpSync, existsSync, mkdirSync, writeFileSync } from "fs";
+import { cpSync, existsSync, mkdirSync, writeFileSync, readFileSync } from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { ensureDir, log } from "../utils.js";
 import { writeDefaultVepConfig, PROJECT_DIRS } from "./config.js";
-import { loadStoryboard, validateSegmentFields } from "./storyboard.js";
+import { validateSegmentFields, collectStoryboardWarnings } from "./storyboard.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SKILL_ROOT = path.resolve(__dirname, "../..");
@@ -42,7 +42,16 @@ vep article pipeline ./project
 \`\`\`
 `;
 
-export function runArticleInit(projectDir: string, force = false): void {
+export function runArticleInit(projectDir: string, force = false, dryRun = false): void {
+  if (dryRun) {
+    log.text(`[dry-run] would initialize article project at ${projectDir}`);
+    for (const dir of PROJECT_DIRS) {
+      log.text(`[dry-run] would create ${path.join(projectDir, dir)}`);
+    }
+    log.text(`[dry-run] would create article.md, storyboard.json, templates/, vep.config.json`);
+    return;
+  }
+
   ensureDir(projectDir);
 
   for (const dir of PROJECT_DIRS) {
@@ -86,9 +95,8 @@ export function runArticleValidate(
   opts: ValidateOptions = {}
 ): void {
   const sbPath = opts.storyboardFile ?? path.join(projectDir, "storyboard.json");
-
-  const sb = loadStoryboard(projectDir, sbPath);
-  const warnings: string[] = [];
+  const raw = readFileSync(sbPath, "utf-8");
+  const { storyboard: sb, warnings } = collectStoryboardWarnings(raw);
 
   for (const seg of sb.segments) {
     warnings.push(...validateSegmentFields(seg));

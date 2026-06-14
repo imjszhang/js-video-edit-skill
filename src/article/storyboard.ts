@@ -3,20 +3,35 @@ import path from "path";
 import { StoryboardSchema, type Storyboard } from "./types.js";
 import { log } from "../utils.js";
 
+export function collectStoryboardWarnings(jsonStr: string): { storyboard: Storyboard; warnings: string[] } {
+  const parsed = JSON.parse(jsonStr);
+  const storyboard = StoryboardSchema.parse(parsed);
+  const warnings: string[] = [];
+
+  const seenIds = new Set<number>();
+  for (const seg of storyboard.segments) {
+    if (seenIds.has(seg.id)) {
+      warnings.push(`duplicate segment id: ${seg.id}`);
+    }
+    seenIds.add(seg.id);
+
+    if (seg.duration !== undefined) {
+      warnings.push(
+        `segment ${seg.id} has deprecated 'duration' field — ignored; use timeline.json instead`
+      );
+    }
+  }
+
+  return { storyboard, warnings };
+}
+
 export function validateStoryboard(jsonStr: string): Storyboard {
   try {
-    const parsed = JSON.parse(jsonStr);
-    const result = StoryboardSchema.parse(parsed);
-
-    for (const seg of result.segments) {
-      if (seg.duration !== undefined) {
-        log.text(
-          `Warning: segment ${seg.id} has deprecated 'duration' field — ignored; use timeline.json instead`
-        );
-      }
+    const { storyboard, warnings } = collectStoryboardWarnings(jsonStr);
+    for (const w of warnings) {
+      log.text(`Warning: ${w}`);
     }
-
-    return result;
+    return storyboard;
   } catch (err) {
     if (err instanceof Error) {
       throw new Error(`Invalid storyboard: ${err.message}`);

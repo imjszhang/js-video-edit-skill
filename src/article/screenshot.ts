@@ -4,7 +4,7 @@ import path from "path";
 import { createRequire } from "module";
 import { log } from "../utils.js";
 import { loadVepConfig } from "./config.js";
-import { sortBySegmentId } from "./segment-files.js";
+import { sortBySegmentId, parseSegmentId, scenePngName } from "./segment-files.js";
 
 const require = createRequire(import.meta.url);
 
@@ -112,6 +112,15 @@ function resolveJsEyesClient(configPath?: string): string {
   );
 }
 
+function resolveSceneFile(scenesDir: string, fileName: string): string | null {
+  const safeName = path.basename(fileName);
+  const filePath = path.resolve(scenesDir, safeName);
+  if (!filePath.startsWith(path.resolve(scenesDir) + path.sep)) {
+    return null;
+  }
+  return filePath;
+}
+
 export async function runArticleScreenshot(
   projectDir: string,
   opts: ScreenshotOptions = {}
@@ -138,10 +147,10 @@ export async function runArticleScreenshot(
   }
 
   const server = createServer((req, res) => {
-    const fileName = (req.url ?? "/").split("?")[0]!.split("/").pop() ?? "";
-    const filePath = path.join(scenesDir, fileName);
-    const ext = path.extname(fileName);
-    if (existsSync(filePath)) {
+    const rawName = (req.url ?? "/").split("?")[0]!.split("/").pop() ?? "";
+    const filePath = resolveSceneFile(scenesDir, rawName);
+    const ext = path.extname(rawName);
+    if (filePath && existsSync(filePath)) {
       res.writeHead(200, {
         "Content-Type": ext === ".html" ? "text/html;charset=utf-8" : "image/png",
       });
@@ -160,11 +169,14 @@ export async function runArticleScreenshot(
   const { BrowserAutomation } = require(clientPath);
   const bot = new BrowserAutomation(wsUrl);
 
+  const failed: string[] = [];
+  let succeeded = 0;
+
   try {
     await bot.connect();
 
     for (const file of htmlFiles) {
-      const num = file.replace("scene", "").replace(".html", "");
+      const segId = parseSegmentId(file, "scene");
       const url = `http://localhost:${port}/${file}`;
       let success = false;
 
@@ -182,9 +194,10 @@ export async function runArticleScreenshot(
           });
 
           const buf = Buffer.from(result.dataUrl.split(",")[1]!, "base64");
-          const pngPath = path.join(scenesDir, `scene${num}.png`);
+          const pngName = segId !== null ? scenePngName(segId) : file.replace(".html", ".png");
+          const pngPath = path.join(scenesDir, pngName);
           writeFileSync(pngPath, buf);
-          log.text(`Screenshot scene${num}.png`);
+          log.text(`Screenshot ${pngName}`);
 
           if (!opts.skipValidate) {
             const v = await validateCentering(pngPath);
@@ -194,6 +207,7 @@ export async function runArticleScreenshot(
           }
 
           success = true;
+          succeeded++;
         } finally {
           await bot.closeTab(tabId);
           await new Promise((r) => setTimeout(r, 300));
@@ -202,6 +216,7 @@ export async function runArticleScreenshot(
 
       if (!success) {
         log.error(`Failed to screenshot ${file} after ${retries} attempt(s)`);
+        failed.push(file);
       }
     }
   } finally {
@@ -209,5 +224,12 @@ export async function runArticleScreenshot(
     server.close();
   }
 
-  log.scene(`Screenshots complete — ${htmlFiles.length} scene(s)`);
+  if (failed.length > 0) {
+    log.error(
+      `Screenshot failed for ${failed.length}/${htmlFiles.length} scene(s): ${failed.join(", ")}`
+    );
+    process.exit(1);
+  }
+
+  log.scene(`Screenshots complete — ${succeeded}/${htmlFiles.length} scene(s)`);
 }

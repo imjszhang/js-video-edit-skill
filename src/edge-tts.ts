@@ -2,7 +2,7 @@ import { writeFileSync, unlinkSync, mkdirSync } from "fs";
 import path from "path";
 import { runCommandOutput } from "./utils.js";
 
-const LONG_TEXT_THRESHOLD = 2000;
+const LONG_TEXT_THRESHOLD = 1500;
 
 export async function isEdgeTtsAvailable(): Promise<boolean> {
   try {
@@ -28,7 +28,7 @@ export async function synthesizeEdgeTts(opts: EdgeTtsOptions): Promise<void> {
 
   ensureDir(path.dirname(opts.output));
 
-  const useFile = opts.text.length > LONG_TEXT_THRESHOLD;
+  const useFile = opts.text.length >= LONG_TEXT_THRESHOLD;
   let tmpFile: string | undefined;
 
   if (useFile) {

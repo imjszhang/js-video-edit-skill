@@ -1,7 +1,8 @@
-import { readFileSync, writeFileSync, existsSync } from "fs";
+import { readFileSync, writeFileSync, existsSync, statSync } from "fs";
 import path from "path";
-import { VepConfigSchema, type VepConfig } from "./types.js";
+import { VepConfigSchema, type VepConfig, type Storyboard } from "./types.js";
 import { loadStoryboard } from "./storyboard.js";
+import { log } from "../utils.js";
 
 const DEFAULT_CONFIG: VepConfig = VepConfigSchema.parse({});
 
@@ -22,6 +23,35 @@ export function loadVepConfig(projectDir: string): VepConfig {
   }
   const raw = JSON.parse(readFileSync(configPath, "utf-8"));
   return VepConfigSchema.parse(raw);
+}
+
+export function warnConfigStoryboardMismatch(
+  projectDir: string,
+  storyboard: Storyboard,
+  config: VepConfig
+): void {
+  const configPath = path.join(projectDir, "vep.config.json");
+  if (!existsSync(configPath)) return;
+
+  const mismatches: string[] = [];
+  if (config.width !== storyboard.width) {
+    mismatches.push(`width ${config.width} vs storyboard ${storyboard.width}`);
+  }
+  if (config.height !== storyboard.height) {
+    mismatches.push(`height ${config.height} vs storyboard ${storyboard.height}`);
+  }
+  if (config.fps !== storyboard.fps) {
+    mismatches.push(`fps ${config.fps} vs storyboard ${storyboard.fps}`);
+  }
+  if (storyboard.voice && config.voice !== storyboard.voice) {
+    mismatches.push(`voice ${config.voice} vs storyboard ${storyboard.voice}`);
+  }
+
+  if (mismatches.length > 0) {
+    log.text(
+      `Warning: vep.config.json overrides storyboard — ${mismatches.join("; ")}`
+    );
+  }
 }
 
 export function writeDefaultVepConfig(projectDir: string): void {

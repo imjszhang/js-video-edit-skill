@@ -1,5 +1,5 @@
 import assert from "node:assert";
-import { cuesToAss, formatAssTime, wrapAssText } from "../src/ass.js";
+import { cuesToAss, formatAssTime, wrapAssText, escapeAssText } from "../src/ass.js";
 
 function test(name: string, fn: () => void) {
   try {
@@ -20,6 +20,11 @@ test("formatAssTime converts seconds correctly", () => {
 
 test("wrapAssText handles short text", () => {
   assert.strictEqual(wrapAssText("短字幕"), "短字幕");
+});
+
+test("escapeAssText escapes ASS control chars", () => {
+  assert.strictEqual(escapeAssText("a{b}c"), "a\\{b\\}c");
+  assert.strictEqual(escapeAssText("back\\slash"), "back\\\\slash");
 });
 
 test("cuesToAss generates valid ASS header", () => {

@@ -28,7 +28,7 @@ description: >-
 ### 模式 B：全文视频化
 - 把一篇文章变成带语音+字幕的完整视频
 - 适合：公众号文章转视频、知识讲解视频、有声读物
-- 核心流程：文章 → 分段脚本 → HTML 画面 → TTS 语音 → 静音剪枝 → ffmpeg 合成
+- 核心流程：文章 → storyboard.json（分镜 + narration）→ HTML 画面 → TTS 语音 → timeline 实测 → ffmpeg 合成
 
 ---
 
@@ -191,13 +191,15 @@ vep article assemble ./project
 
 ### 语音剪枝
 
-用 ffmpeg silenceremove 剪掉每段 TTS 的间隔停顿，通常可剪掉 ~19% 冗余时长：
+`vep article timeline` 内置 silenceremove，剪掉每段 TTS 的间隔停顿（参数见 `vep.config.json`）。
+
+剪完后重跑 `vep article timeline` + `assemble`（assemble 按 timeline 时长从 PNG 生成 clip）。
+
+手动调试示例：
 
 ```bash
 ffmpeg -i seg01.mp3 -af "silenceremove=start_periods=0:stop_periods=-1:stop_threshold=-50dB:stop_duration=0.2:stop_silence=0.1" -c:a libmp3lame -b:a 128k trimmed/seg01.mp3
 ```
-
-剪完后必须重新生成视频片段和字幕时间轴。
 
 ### 字幕样式（电影风格）
 
@@ -228,15 +230,15 @@ Dialogue: 0,0:00:00.000,0:00:05.498,Default,,0,0,0,,标题文字\N副标题
 
 ### TTS 语音
 
-```python
-import edge_tts
-comm = edge_tts.Communicate(text, 'zh-CN-YunxiNeural')
-await comm.save('output.mp3')
+```bash
+vep article tts ./project
+# 或指定音色
+vep article tts ./project --voice zh-CN-YunxiNeural
 ```
 
-- 语音：`zh-CN-YunxiNeural`（中文男声，自然流畅）
-- 逐段生成 MP3，再 concat 拼接
-- 缺失段用静音补齐（否则 `-shortest` 会截断）
+- 默认语音：`zh-CN-YunxiNeural`（在 `storyboard.json` 或 `vep.config.json` 配置）
+- 逐段生成 `audio/segXX.mp3`；旁白 ≥1500 字自动写 `.vep-tmp/*.txt` 调用 edge-tts
+- 缺失段在 assemble 时用静音补齐
 
 ---
 
@@ -247,9 +249,10 @@ await comm.save('output.mp3')
 | 坑 | 解法 |
 |---|---|
 | `pipeline --from storyboard --to assemble` 无 `--write-template` | storyboard 步只输出 digest，pipeline 会自动退出；用 `--write-template` 或 `--from render` |
-| 音频段数 ≠ PNG 段数（如 20 audio / 14 scene） | `vep article recover` 会 Warning；补截图或合并分镜后再 assemble |
+| 音频段数 ≠ PNG 段数（如 8 audio / 5 scene） | `vep article recover` 会 Warning；补截图或合并分镜后再 assemble |
 | `--dry-run` 仍报缺 audio | 已修复：dry-run 跳过文件存在检查 |
-| TTS 旁白过长（Windows） | 超 2000 字自动写 `.vep-tmp/*.txt` 用 `--file` 调用 edge-tts |
+| TTS 旁白过长（Windows） | ≥1500 字自动写 `.vep-tmp/*.txt` 用 `--file` 调用 edge-tts |
+| `--write-template` / `recover` 覆写已有文件 | 默认拒绝；加 `--force`（自动 `.bak` 备份） |
 | 合成视频比音频短、尾部旁白被截 | mux 以 `timeline.total_duration` 为准，不用 `-shortest` |
 
 ### Windows / PowerShell
@@ -328,9 +331,9 @@ body{min-width:1080px;min-height:1920px;background:#000;display:flex;align-items
 
 ### 语音时长
 
-- TTS 实际时长远超 script.json 的 duration 估算
-- **必须按实际语音时长生成各场景视频**
-- 用 silenceremove 剪掉停顿后，**必须重新生成所有视频片段和字幕时间轴**
+- **不要**在 `storyboard.json` 填写 `duration`；时长由 `vep article timeline` 从实测音频生成
+- assemble 按 `timeline.total_duration` 生成各场景 clip 并 mux
+- 修改旁白或重跑 TTS 后，重跑 `vep article timeline` + `assemble`
 
 ### 飞书兼容
 
@@ -397,203 +400,21 @@ vep article pipeline D:/path/to/project
 
 ---
 
-## 📦 项目初始化指南
+## 📦 项目初始化指南（模式 B）
 
-### 从零创建全文视频化项目
-
-#### 第 1 步：创建目录结构
 ```bash
-mkdir -p project/{templates,scenes,trimmed}
+vep article init ./project
 ```
 
-#### 第 2 步：创建 6 个 HTML 模板
-在 `project/templates/` 下创建以下文件（具体 CSS 见「HTML 模板设计规范」一节）：
-- hero.html, text-card.html, quote-card.html, code-block.html, comparison.html, step-diagram.html
+编辑 `project/article.md`，然后：
 
-**关键**：所有模板必须使用竖屏标准结构（见上方规范）。
-
-#### 第 3 步：创建 script.json
-```json
-{
-  "title": "视频标题",
-  "badge": "可选徽章",
-  "width": 1080,
-  "height": 1920,
-  "fps": 24,
-  "segments": [
-    {
-      "id": 1,
-      "visual_type": "hero",
-      "text": "标题文字",
-      "subtitle": "副标题",
-      "duration": 5
-    }
-  ]
-}
+```bash
+vep article storyboard ./project              # stdout digest → Agent 生成 storyboard.json
+vep article storyboard ./project --write-template   # 或写出初稿（已有文件需 --force）
+vep article validate ./project
+vep article pipeline ./project
 ```
 
-#### 第 4 步：创建 render.py、screenshot.js 和 make_video.py
-见下方「附录：完整脚本代码」。
+`init` 会创建：`article.md`、`storyboard.json`（模板）、`templates/`（7 种竖屏 HTML）、`vep.config.json`、`scenes/`、`audio/`、`trimmed/`。
 
----
-
-## 附录：完整脚本代码
-
-### render.py
-
-```python
-import json, os, re
-
-DIR = r'你的项目路径'  # 修改为实际路径
-TEMPLATES_DIR = os.path.join(DIR, 'templates')
-SCENES_DIR = os.path.join(DIR, 'scenes')
-os.makedirs(SCENES_DIR, exist_ok=True)
-
-templates = {}
-for fname in sorted(os.listdir(TEMPLATES_DIR)):
-    if not fname.endswith('.html'): continue
-    with open(os.path.join(TEMPLATES_DIR, fname), 'r', encoding='utf-8') as f:
-        templates[os.path.splitext(fname)[0]] = f.read()
-
-with open(os.path.join(DIR, 'script.json'), 'r', encoding='utf-8') as f:
-    script = json.load(f)
-
-def render(template, data):
-    html = template
-    html = re.sub(r'\{\{#(\w+)\}\}([\s\S]*?)\{\{\/\1\}\}', lambda m: m.group(2) if data.get(m.group(1)) else '', html)
-    html = re.sub(r'\{\{\{(\w+)\}\}\}', lambda m: str(data.get(m.group(1), '')), html)
-    html = re.sub(r'\{\{(\w+)\}\}', lambda m: str(data.get(m.group(1), '')), html)
-    return html
-
-def esc(s):
-    return s.replace('&','&amp;').replace('<','&lt;').replace('>','&gt;')
-
-for seg in script['segments']:
-    tname = seg.get('visual_type', 'text-card')
-    if tname == 'ending': tname = 'hero'
-    if tname not in templates: tname = 'text-card'
-    template = templates[tname]
-    
-    if tname == 'hero':
-        lines = (seg.get('text', '') or '').split('\n')
-        ts = 90 if len(lines) > 2 else (110 if len(lines) > 1 else 130)
-        html = render(template, {
-            'badge': seg.get('badge', script.get('badge', '')),
-            'title': (seg.get('text', '') or '').replace('\n', '<br>'),
-            'titleSize': ts,
-            'subtitle': seg.get('subtitle', '')
-        })
-    elif tname == 'text-card':
-        html = render(template, {
-            'heading': seg.get('heading', ''),
-            'body': (seg.get('body', '') or '').replace('\n', '<br>')
-        })
-    elif tname == 'quote-card':
-        html = render(template, {
-            'quote': (seg.get('quote', '') or '').replace('\n', '<br>'),
-            'author': seg.get('author', '')
-        })
-    elif tname == 'code-block':
-        html = render(template, {
-            'heading': seg.get('heading', ''),
-            'code': esc(seg.get('code', '')).replace('\n', '<br>')
-        })
-    elif tname == 'comparison':
-        li = ''.join(f'<li>{i}</li>' for i in (seg.get('left_items') or []))
-        ri = ''.join(f'<li>{i}</li>' for i in (seg.get('right_items') or []))
-        html = render(template, {
-            'heading': seg.get('heading', ''),
-            'left_title': seg.get('left_title', ''),
-            'left_items': li,
-            'right_title': seg.get('right_title', ''),
-            'right_items': ri
-        })
-    elif tname == 'step-diagram':
-        sh = ''.join(f'<div class="step"><span class="step-num">{i+1}</span><span class="step-text">{s}</span></div>'
-                     for i, s in enumerate(seg.get('steps') or []))
-        html = render(template, {
-            'heading': seg.get('heading', ''),
-            'steps': sh
-        })
-    else:
-        html = render(templates['text-card'], {
-            'heading': seg.get('heading', seg.get('text', '')),
-            'body': (seg.get('body', '') or '').replace('\n', '<br>')
-        })
-    
-    out = os.path.join(SCENES_DIR, f"scene{seg['id']:02d}.html")
-    with open(out, 'w', encoding='utf-8') as f:
-        f.write(html)
-    print(f'Rendered scene {seg["id"]:02d} ({tname})')
-
-print(f'\nDone! {len(script["segments"])} scenes rendered')
-```
-
-### screenshot.js
-
-```javascript
-const { BrowserAutomation } = require('<path-to-js-eyes>/skills/js-browser-ops-skill/lib/js-eyes-client.js');
-const fs = require('fs');
-const http = require('http');
-const pathMod = require('path');
-
-const DIR = 'D:\\path\\to\\project';  // 修改为你的项目路径
-const SCENES_DIR = pathMod.join(DIR, 'scenes');
-const PORT = 18998;
-
-const server = http.createServer((req, res) => {
-  const fileName = req.url.split('?')[0].split('/').pop();
-  const filePath = pathMod.join(SCENES_DIR, fileName);
-  const ext = pathMod.extname(fileName);
-  if (fs.existsSync(filePath)) {
-    res.writeHead(200, { 'Content-Type': ext === '.html' ? 'text/html;charset=utf-8' : 'image/png' });
-    fs.createReadStream(filePath).pipe(res);
-  } else { res.writeHead(404); res.end('404'); }
-});
-
-async function main() {
-  await new Promise((resolve) => server.listen(PORT, resolve));
-  const files = fs.readdirSync(SCENES_DIR).filter(f => f.endsWith('.html')).sort();
-  const bot = new BrowserAutomation('ws://localhost:18080');
-  await bot.connect();
-
-  for (const file of files) {
-    const num = file.replace('scene', '').replace('.html', '');
-    const url = `http://localhost:${PORT}/${file}`;
-    const tabId = await bot.openUrl(url);
-    await new Promise(r => setTimeout(r, 3000));
-
-    const result = await bot.captureScreenshot(tabId, {
-      fullPage: true,  // 必须 true，否则只截视口
-      format: 'png',
-      timeout: 120,
-    });
-
-    const buf = Buffer.from(result.dataUrl.split(',')[1], 'base64');
-    fs.writeFileSync(pathMod.join(SCENES_DIR, `scene${num}.png`), buf);
-    await bot.closeTab(tabId);
-    await new Promise(r => setTimeout(r, 300));
-  }
-
-  bot.disconnect();
-  server.close();
-  console.log(`All ${files.length} screenshots done!`);
-}
-main().catch(err => { console.error('Error:', err.message); server?.close(); process.exit(1); });
-```
-
-### 居中验证脚本（Python）
-
-截图后运行，确保内容居中：
-```python
-from PIL import Image; import numpy as np
-for f in ['scene01.png','scene05.png','scene09.png']:
-    img=Image.open(f'scenes/{f}').convert('L'); arr=np.array(img); h,w=arr.shape
-    cm=arr.mean(axis=0); rm=arr.mean(axis=1)
-    l=next((i for i in range(w) if cm[i]>20),0); r=next((w-1-i for i in range(w) if cm[w-1-i]>20),w-1)
-    t=next((i for i in range(h) if rm[i]>20),0); b=next((h-1-i for i in range(h) if rm[h-1-i]>20),h-1)
-    ho=((l+r)/2-w/2); vo=((t+b)/2-h/2)
-    print(f'{f}: h_offset={ho:+.0f}px, v_offset={vo:+.0f}px, usage={(r-l)/w*100:.0f}%W x {(b-t)/h*100:.0f}%H')
-```
-
-合格标准：`h_offset < ±20px`，宽度使用率 `> 30%`。
+详细步骤见 `docs/article-quickstart.md`，分镜规则见 `docs/storyboard-rules.md`。

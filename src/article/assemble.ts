@@ -1,4 +1,4 @@
-import { writeFileSync, existsSync, copyFileSync } from "fs";
+import { writeFileSync, existsSync, copyFileSync, statSync } from "fs";
 import path from "path";
 import {
   imageToVideo,
@@ -7,6 +7,8 @@ import {
   muxVideoAudio,
   burnAss,
   generateSilence,
+  probeAudioDuration,
+  getMediaInfo,
 } from "../ffmpeg.js";
 import { ensureDir, log, crossPath } from "../utils.js";
 import { loadTimeline } from "./timeline.js";
@@ -15,6 +17,30 @@ import { loadVepConfig } from "./config.js";
 export interface AssembleOptions {
   verbose?: boolean;
   dryRun?: boolean;
+}
+
+function warnStaleTimeline(projectDir: string, timelinePath: string): void {
+  if (!existsSync(timelinePath)) return;
+
+  const timelineMtime = statSync(timelinePath).mtimeMs;
+  const audioDir = path.join(projectDir, "audio");
+
+  for (const seg of loadTimeline(projectDir).segments) {
+    const audioPath = path.join(projectDir, seg.audio_raw);
+    if (existsSync(audioPath) && statSync(audioPath).mtimeMs > timelineMtime) {
+      log.text(
+        "Warning: audio files are newer than timeline.json — consider re-running 'vep article timeline'"
+      );
+      return;
+    }
+  }
+
+  const storyboardPath = path.join(projectDir, "storyboard.json");
+  if (existsSync(storyboardPath) && statSync(storyboardPath).mtimeMs > timelineMtime) {
+    log.text(
+      "Warning: storyboard.json is newer than timeline.json — timeline may be stale"
+    );
+  }
 }
 
 export async function runArticleAssemble(
@@ -30,6 +56,10 @@ export async function runArticleAssemble(
     log.text("[dry-run] would load timeline.json");
     log.scene("[dry-run] assemble complete (no timeline.json, no files written)");
     return path.join(trimmedDir, "final.mp4");
+  }
+
+  if (opts.dryRun && existsSync(timelinePath)) {
+    warnStaleTimeline(projectDir, timelinePath);
   }
 
   const timeline = loadTimeline(projectDir);
@@ -95,6 +125,19 @@ export async function runArticleAssemble(
   const audioFullPath = path.join(trimmedDir, "audio_full.m4a");
   await concatAudio(audioListPath, audioFullPath);
   log.text(`Audio track: ${audioFullPath}`);
+
+  try {
+    const videoInfo = await getMediaInfo(videoOnlyPath);
+    const audioDur = await probeAudioDuration(audioFullPath);
+    const frameDur = 1 / config.fps;
+    if (Math.abs(videoInfo.duration - audioDur) > frameDur) {
+      log.text(
+        `Warning: video (${videoInfo.duration.toFixed(3)}s) and audio (${audioDur.toFixed(3)}s) duration differ by >1 frame — mux uses timeline ${timeline.total_duration.toFixed(3)}s`
+      );
+    }
+  } catch {
+    /* probe optional */
+  }
 
   const muxedPath = path.join(trimmedDir, "muxed.mp4");
   await muxVideoAudio(videoOnlyPath, audioFullPath, muxedPath, {

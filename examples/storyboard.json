@@ -1,7 +1,7 @@
 {
   "version": 1,
-  "title": "龙虾不需要 Fable 5 也能剪视频",
-  "badge": "KL52 · 养虾日记",
+  "title": "用 JSON 驱动视频剪辑",
+  "badge": "Demo",
   "width": 1080,
   "height": 1920,
   "fps": 24,
@@ -10,9 +10,9 @@
     {
       "id": 1,
       "visual_type": "hero",
-      "narration": "龙虾不需要 Fable 5 也能剪视频。这是一期养虾日记。",
-      "text": "龙虾不需要 Fable 5\n也能剪视频",
-      "subtitle": "KL52 · 养虾日记",
+      "narration": "用 JSON 描述分镜，ffmpeg 负责执行。这是一段通用示例旁白。",
+      "text": "用 JSON 驱动\n视频剪辑",
+      "subtitle": "Demo",
       "reason": "封面镜，建立话题",
       "candidates": [
         { "visual_type": "text-card", "reason_rejected": "封面冲击力不足" }
@@ -36,6 +36,15 @@
       "code": "vep article pipeline ./project\n  --from render --to assemble",
       "reason": "代码块展示 CLI 命令",
       "selected": "code-block"
+    },
+    {
+      "id": 4,
+      "visual_type": "ending",
+      "narration": "感谢观看，欢迎关注获取更多内容。",
+      "text": "感谢观看",
+      "subtitle": "Demo",
+      "reason": "片尾镜",
+      "selected": "ending"
     }
   ]
 }

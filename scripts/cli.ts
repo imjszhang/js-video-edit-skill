@@ -232,8 +232,13 @@ article
   .description("Analyze article.md and output storyboard digest for LLM")
   .argument("<projectDir>", "Project directory")
   .option("--write-template", "Write draft storyboard.json")
+  .option("-f, --force", "Overwrite existing storyboard.json when using --write-template")
   .action((projectDir, opts) => {
-    runArticleStoryboard(projectDir, { writeTemplate: opts.writeTemplate });
+    runArticleStoryboard(projectDir, {
+      writeTemplate: opts.writeTemplate,
+      force: opts.force,
+      dryRun: cliContext.dryRun,
+    });
   });
 
 article
@@ -261,7 +266,7 @@ article
   .option("--storyboard <file>", "Custom storyboard path")
   .action((projectDir, opts) => {
     try {
-      runArticleRender(projectDir, opts.storyboard);
+      runArticleRender(projectDir, opts.storyboard, { dryRun: cliContext.dryRun });
     } catch (err) {
       log.error(`${err}`);
       process.exit(1);
@@ -292,6 +297,16 @@ article
     }
   });
 
+function parseSegmentIdOption(value: string | undefined, label: string): number | undefined {
+  if (value === undefined) return undefined;
+  const n = parseInt(value, 10);
+  if (!Number.isFinite(n)) {
+    log.error(`Invalid ${label}: ${value}`);
+    process.exit(1);
+  }
+  return n;
+}
+
 article
   .command("tts")
   .description("Generate TTS audio via edge-tts")
@@ -304,8 +319,8 @@ article
     try {
       await runArticleTts(projectDir, {
         voice: opts.voice,
-        fromId: opts.fromId ? parseInt(opts.fromId) : undefined,
-        toId: opts.toId ? parseInt(opts.toId) : undefined,
+        fromId: parseSegmentIdOption(opts.fromId, "--from-id"),
+        toId: parseSegmentIdOption(opts.toId, "--to-id"),
         storyboardFile: opts.storyboard,
         verbose: cliContext.verbose,
         dryRun: cliContext.dryRun,
@@ -356,9 +371,13 @@ article
   .command("recover")
   .description("Recover storyboard + timeline from existing audio/scenes")
   .argument("<projectDir>", "Project directory")
-  .action(async (projectDir) => {
+  .option("-f, --force", "Overwrite existing storyboard.json and timeline.json")
+  .action(async (projectDir, opts) => {
     try {
-      await runArticleRecover(projectDir, { dryRun: cliContext.dryRun });
+      await runArticleRecover(projectDir, {
+        dryRun: cliContext.dryRun,
+        force: opts.force,
+      });
     } catch (err) {
       log.error(`${err}`);
       process.exit(1);
@@ -377,6 +396,7 @@ article
   .option("--skip-screenshot", "Skip screenshot step")
   .option("--storyboard <file>", "Custom storyboard path")
   .option("--write-template", "Write draft storyboard.json (required to continue past storyboard step)")
+  .option("-f, --force", "Overwrite existing files in init/storyboard/recover steps")
   .action(async (projectDir, opts) => {
     await runArticlePipeline(projectDir, {
       from: opts.from,
@@ -385,6 +405,7 @@ article
       skipScreenshot: opts.skipScreenshot,
       storyboardFile: opts.storyboard,
       writeTemplate: opts.writeTemplate,
+      force: opts.force,
       verbose: cliContext.verbose,
       dryRun: cliContext.dryRun,
     });

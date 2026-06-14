@@ -1,4 +1,4 @@
-import { writeFileSync, existsSync } from "fs";
+import { writeFileSync, existsSync, statSync } from "fs";
 import path from "path";
 import { cuesToAss } from "../ass.js";
 import {
@@ -7,7 +7,7 @@ import {
 } from "../ffmpeg.js";
 import { ensureDir, log } from "../utils.js";
 import { loadStoryboard } from "./storyboard.js";
-import { loadVepConfig } from "./config.js";
+import { loadVepConfig, warnConfigStoryboardMismatch } from "./config.js";
 import type { Timeline, ShotList } from "./types.js";
 
 export interface TimelineBuildOptions {
@@ -29,16 +29,60 @@ function relPath(projectDir: string, absPath: string): string {
   return path.relative(projectDir, absPath).replace(/\\/g, "/");
 }
 
+function warnSubsOverwrite(projectDir: string): void {
+  const subsPath = path.join(projectDir, "subs.ass");
+  const timelinePath = path.join(projectDir, "timeline.json");
+  if (!existsSync(subsPath) || !existsSync(timelinePath)) return;
+
+  const subsMtime = statSync(subsPath).mtimeMs;
+  const timelineMtime = statSync(timelinePath).mtimeMs;
+  if (subsMtime > timelineMtime) {
+    log.text(
+      "Warning: subs.ass is newer than timeline.json — re-running timeline will overwrite manual subtitle edits"
+    );
+  }
+}
+
+function segVisualPath(scenesDir: string, id: number): string {
+  return path.join(scenesDir, `scene${String(id).padStart(2, "0")}.png`);
+}
+
+export function getMissingTimelineAssets(
+  projectDir: string,
+  segmentIds: number[],
+  dryRun: boolean
+): { missingAudio: number[]; missingVisual: number[] } {
+  if (dryRun) return { missingAudio: [], missingVisual: [] };
+
+  const audioDir = path.join(projectDir, "audio");
+  const scenesDir = path.join(projectDir, "scenes");
+  const missingAudio: number[] = [];
+  const missingVisual: number[] = [];
+
+  for (const id of segmentIds) {
+    if (!existsSync(segAudioPath(audioDir, id))) missingAudio.push(id);
+    if (!existsSync(segVisualPath(scenesDir, id))) missingVisual.push(id);
+  }
+
+  return { missingAudio, missingVisual };
+}
+
 export async function runArticleTimeline(
   projectDir: string,
   opts: TimelineBuildOptions = {}
 ): Promise<Timeline> {
   const storyboard = loadStoryboard(projectDir, opts.storyboardFile);
   const config = loadVepConfig(projectDir);
+  warnConfigStoryboardMismatch(projectDir, storyboard, config);
+
   const audioDir = path.join(projectDir, "audio");
   const trimmedDir = path.join(projectDir, "trimmed");
   const scenesDir = path.join(projectDir, "scenes");
   ensureDir(trimmedDir);
+
+  if (!opts.dryRun) {
+    warnSubsOverwrite(projectDir);
+  }
 
   let offset = 0;
   const segments: Timeline["segments"] = [];
@@ -46,13 +90,17 @@ export async function runArticleTimeline(
   for (const seg of storyboard.segments) {
     const rawPath = segAudioPath(audioDir, seg.id);
     const trimmedPath = segTrimmedPath(trimmedDir, seg.id);
-    const visualPath = path.join(
-      scenesDir,
-      `scene${String(seg.id).padStart(2, "0")}.png`
-    );
+    const visualPath = segVisualPath(scenesDir, seg.id);
 
     if (!opts.dryRun && !existsSync(rawPath)) {
       log.error(`Missing audio: ${rawPath}. Run 'vep article tts' first.`);
+      process.exit(1);
+    }
+
+    if (!opts.dryRun && !existsSync(visualPath)) {
+      log.error(
+        `Missing visual: ${visualPath}. Run 'vep article screenshot' first.`
+      );
       process.exit(1);
     }
 
@@ -84,7 +132,15 @@ export async function runArticleTimeline(
       copyFileSync(rawPath, trimmedPath);
     }
 
-    const duration = await probeAudioDuration(trimmedPath);
+    let duration = await probeAudioDuration(trimmedPath);
+    if (duration < 0.1) {
+      const rawDuration = await probeAudioDuration(rawPath);
+      log.text(
+        `Warning: segment ${seg.id} trimmed audio too short (${duration.toFixed(3)}s) — using raw duration ${rawDuration.toFixed(3)}s`
+      );
+      duration = rawDuration;
+    }
+
     const start = offset;
     const end = offset + duration;
 

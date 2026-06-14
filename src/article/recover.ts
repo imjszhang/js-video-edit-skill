@@ -1,4 +1,4 @@
-import { readdirSync, writeFileSync, existsSync } from "fs";
+import { readdirSync, writeFileSync, existsSync, copyFileSync } from "fs";
 import path from "path";
 import { log } from "../utils.js";
 import { probeAudioDuration } from "../ffmpeg.js";
@@ -10,23 +10,26 @@ import {
 
 export interface RecoverOptions {
   dryRun?: boolean;
+  force?: boolean;
 }
 
-function warnSegmentMismatch(
+export function warnSegmentMismatch(
   audioIds: number[],
   pngIds: Set<number>,
   scenesDir: string
 ): void {
-  const audioCount = audioIds.length;
-  const pngCount = pngIds.size;
+  const audioSet = new Set(audioIds);
+  const missingVisuals = audioIds.filter((id) => !pngIds.has(id));
+  const orphanPngs = [...pngIds].filter((id) => !audioSet.has(id));
 
-  if (audioCount !== pngCount) {
+  if (!existsSync(scenesDir)) {
     log.text(
-      `Warning: ${audioCount} audio segment(s) but ${pngCount} PNG scene(s) — assemble may fail for missing visuals`
+      "Warning: scenes/ directory not found — run vep article render and screenshot before assemble"
     );
+  } else if (pngIds.size === 0 && audioIds.length > 0) {
+    log.text("Warning: no scene*.png found — run vep article screenshot before assemble");
   }
 
-  const missingVisuals = audioIds.filter((id) => !pngIds.has(id));
   if (missingVisuals.length > 0) {
     const preview = missingVisuals.slice(0, 5).join(", ");
     const suffix =
@@ -39,13 +42,57 @@ function warnSegmentMismatch(
     );
   }
 
-  if (audioCount > 0 && pngCount === 0 && existsSync(scenesDir)) {
-    log.text("Warning: no scene*.png found — run vep article screenshot before assemble");
+  if (orphanPngs.length > 0) {
+    const preview = orphanPngs.slice(0, 5).join(", ");
+    const suffix =
+      orphanPngs.length > 5 ? ` … (+${orphanPngs.length - 5} more)` : "";
+    log.text(
+      `Warning: orphan PNG(s) without matching audio id(s): ${preview}${suffix}`
+    );
+    log.text(
+      "Action: remove unused PNGs, add matching audio segments, or update storyboard ids"
+    );
+  }
+
+  if (
+    audioIds.length !== pngIds.size &&
+    missingVisuals.length === 0 &&
+    orphanPngs.length === 0
+  ) {
+    log.text(
+      `Info: ${audioIds.length} audio segment(s) and ${pngIds.size} PNG scene(s) — counts differ but ids align`
+    );
   }
 
   log.text(
     "Note: recovered narration is placeholder — edit storyboard.json before timeline/assemble"
   );
+}
+
+function guardOverwrite(
+  projectDir: string,
+  force?: boolean
+): void {
+  const storyboardPath = path.join(projectDir, "storyboard.json");
+  const timelinePath = path.join(projectDir, "timeline.json");
+
+  if (!force && (existsSync(storyboardPath) || existsSync(timelinePath))) {
+    const existing = [
+      existsSync(storyboardPath) ? "storyboard.json" : null,
+      existsSync(timelinePath) ? "timeline.json" : null,
+    ].filter(Boolean);
+    log.error(
+      `${existing.join(" and ")} already exist. Use --force to overwrite (creates .bak backups).`
+    );
+    process.exit(1);
+  }
+}
+
+function backupIfExists(filePath: string): void {
+  if (existsSync(filePath)) {
+    copyFileSync(filePath, `${filePath}.bak`);
+    log.text(`Backed up ${path.basename(filePath)} to ${path.basename(filePath)}.bak`);
+  }
 }
 
 export async function runArticleRecover(
@@ -181,16 +228,18 @@ export async function runArticleRecover(
     return;
   }
 
-  writeFileSync(
-    path.join(projectDir, "timeline.json"),
-    JSON.stringify(timeline, null, 2) + "\n",
-    "utf-8"
-  );
-  writeFileSync(
-    path.join(projectDir, "storyboard.json"),
-    JSON.stringify(storyboard, null, 2) + "\n",
-    "utf-8"
-  );
+  guardOverwrite(projectDir, opts.force);
+
+  const storyboardPath = path.join(projectDir, "storyboard.json");
+  const timelinePath = path.join(projectDir, "timeline.json");
+
+  if (opts.force) {
+    backupIfExists(storyboardPath);
+    backupIfExists(timelinePath);
+  }
+
+  writeFileSync(timelinePath, JSON.stringify(timeline, null, 2) + "\n", "utf-8");
+  writeFileSync(storyboardPath, JSON.stringify(storyboard, null, 2) + "\n", "utf-8");
 
   log.scene(
     `Recovered ${audioFiles.length} segment(s), total ${offset.toFixed(1)}s — review storyboard.json narration before assemble`

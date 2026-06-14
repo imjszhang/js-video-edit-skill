@@ -1,87 +1,10 @@
-import { readFileSync, writeFileSync, existsSync } from "fs";
+import { readFileSync, writeFileSync, existsSync, copyFileSync } from "fs";
 import path from "path";
 import { log } from "../utils.js";
+import type { ArticleBlock } from "./article-blocks.js";
 
-interface ArticleBlock {
-  type: "heading" | "paragraph" | "code" | "quote" | "list" | "comparison_hint";
-  content: string;
-  lines?: string[];
-  level?: number;
-}
-
-function parseArticle(md: string): ArticleBlock[] {
-  const blocks: ArticleBlock[] = [];
-  const lines = md.split("\n");
-  let i = 0;
-  let inCode = false;
-  let codeBuf: string[] = [];
-
-  while (i < lines.length) {
-    const line = lines[i]!;
-
-    if (line.startsWith("```")) {
-      if (inCode) {
-        blocks.push({ type: "code", content: codeBuf.join("\n") });
-        codeBuf = [];
-        inCode = false;
-      } else {
-        inCode = true;
-      }
-      i++;
-      continue;
-    }
-
-    if (inCode) {
-      codeBuf.push(line);
-      i++;
-      continue;
-    }
-
-    if (line.startsWith("#")) {
-      const level = line.match(/^#+/)![0].length;
-      blocks.push({
-        type: "heading",
-        content: line.replace(/^#+\s*/, ""),
-        level,
-      });
-      i++;
-      continue;
-    }
-
-    if (line.startsWith(">")) {
-      const quoteLines: string[] = [];
-      while (i < lines.length && lines[i]!.startsWith(">")) {
-        quoteLines.push(lines[i]!.replace(/^>\s?/, ""));
-        i++;
-      }
-      blocks.push({ type: "quote", content: quoteLines.join("\n"), lines: quoteLines });
-      continue;
-    }
-
-    if (/^[-*]\s/.test(line) || /^\d+\.\s/.test(line)) {
-      const listLines: string[] = [];
-      while (i < lines.length && (/^[-*]\s/.test(lines[i]!) || /^\d+\.\s/.test(lines[i]!))) {
-        listLines.push(lines[i]!.replace(/^[-*]\s|^\d+\.\s/, ""));
-        i++;
-      }
-      blocks.push({ type: "list", content: listLines.join("\n"), lines: listLines });
-      continue;
-    }
-
-    if (/vs|对比|之前|之后/i.test(line)) {
-      blocks.push({ type: "comparison_hint", content: line });
-      i++;
-      continue;
-    }
-
-    if (line.trim()) {
-      blocks.push({ type: "paragraph", content: line.trim() });
-    }
-    i++;
-  }
-
-  return blocks;
-}
+export { parseArticle, type ArticleBlock } from "./article-blocks.js";
+import { parseArticle } from "./article-blocks.js";
 
 function estimateSegments(blocks: ArticleBlock[]): number {
   let count = 2; // hero + ending
@@ -115,8 +38,55 @@ function suggestVisualType(block: ArticleBlock): string {
   }
 }
 
+function buildDraftSegment(
+  block: ArticleBlock,
+  id: number
+): Record<string, unknown> {
+  const vt = suggestVisualType(block);
+  const narration = block.content.slice(0, 200);
+  const base = {
+    id,
+    visual_type: vt,
+    narration,
+    reason: `Auto-draft from ${block.type} block`,
+    selected: vt,
+  };
+
+  switch (vt) {
+    case "code-block":
+      return { ...base, heading: "代码", code: block.content };
+    case "quote-card":
+      return { ...base, quote: block.content };
+    case "step-diagram":
+      return {
+        ...base,
+        heading: "步骤",
+        steps: block.lines ?? [block.content],
+      };
+    case "comparison":
+      return {
+        ...base,
+        heading: "对比",
+        left_title: "之前",
+        left_items: ["待填写"],
+        right_title: "之后",
+        right_items: ["待填写"],
+      };
+    case "text-card":
+      return {
+        ...base,
+        heading: block.type === "heading" ? block.content : block.content.slice(0, 40),
+        body: block.type === "heading" ? "" : block.content.slice(0, 200),
+      };
+    default:
+      return { ...base, body: block.content.slice(0, 200) };
+  }
+}
+
 export interface StoryboardPromptOptions {
   writeTemplate?: boolean;
+  force?: boolean;
+  dryRun?: boolean;
 }
 
 export function runArticleStoryboard(
@@ -153,43 +123,64 @@ export function runArticleStoryboard(
   console.log(JSON.stringify(digest, null, 2));
   log.scene("Digest printed to stdout — pipe to LLM/Agent to generate storyboard.json");
 
-  if (opts.writeTemplate) {
-    const title =
-      blocks.find((b) => b.type === "heading")?.content ?? "视频标题";
-    const template = {
-      version: 1,
-      title,
-      badge: "",
-      width: 1080,
-      height: 1920,
-      fps: 24,
-      voice: "zh-CN-YunxiNeural",
-      segments: [
-        {
-          id: 1,
-          visual_type: "hero",
-          narration: "TODO: 封面旁白",
-          text: title,
-          subtitle: "副标题",
-          reason: "封面镜",
-          selected: "hero",
-        },
-        ...blocks
-          .filter((b) => b.type !== "heading")
-          .slice(0, 5)
-          .map((b, i) => ({
-            id: i + 2,
-            visual_type: suggestVisualType(b),
-            narration: b.content.slice(0, 200),
-            body: b.content.slice(0, 200),
-            reason: `Auto-draft from ${b.type} block`,
-            selected: suggestVisualType(b),
-          })),
-      ],
-    };
+  if (!opts.writeTemplate) return;
 
-    const outPath = path.join(projectDir, "storyboard.json");
-    writeFileSync(outPath, JSON.stringify(template, null, 2) + "\n", "utf-8");
-    log.text(`Wrote draft template to ${outPath} (review before pipeline)`);
+  const title =
+    blocks.find((b) => b.type === "heading")?.content ?? "视频标题";
+  const bodyBlocks = blocks.filter((b) => b.type !== "heading").slice(0, 5);
+  const contentSegments = bodyBlocks.map((b, i) => buildDraftSegment(b, i + 2));
+
+  const template = {
+    version: 1,
+    title,
+    badge: "",
+    width: 1080,
+    height: 1920,
+    fps: 24,
+    voice: "zh-CN-YunxiNeural",
+    segments: [
+      {
+        id: 1,
+        visual_type: "hero",
+        narration: "TODO: 封面旁白",
+        text: title,
+        subtitle: "副标题",
+        reason: "封面镜",
+        selected: "hero",
+      },
+      ...contentSegments,
+      {
+        id: contentSegments.length + 2,
+        visual_type: "ending",
+        narration: "TODO: 片尾旁白",
+        text: "感谢观看",
+        subtitle: "",
+        reason: "片尾镜",
+        selected: "ending",
+      },
+    ],
+  };
+
+  const outPath = path.join(projectDir, "storyboard.json");
+
+  if (existsSync(outPath) && !opts.force) {
+    log.error(
+      `storyboard.json already exists at ${outPath}. Use --force to overwrite.`
+    );
+    process.exit(1);
   }
+
+  if (opts.dryRun) {
+    log.text(`[dry-run] would write draft storyboard to ${outPath}`);
+    log.text(`[dry-run] ${template.segments.length} segment(s)`);
+    return;
+  }
+
+  if (existsSync(outPath) && opts.force) {
+    copyFileSync(outPath, `${outPath}.bak`);
+    log.text(`Backed up existing storyboard to ${outPath}.bak`);
+  }
+
+  writeFileSync(outPath, JSON.stringify(template, null, 2) + "\n", "utf-8");
+  log.text(`Wrote draft template to ${outPath} (review before pipeline)`);
 }

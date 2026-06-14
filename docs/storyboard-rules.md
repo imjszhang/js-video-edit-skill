@@ -18,7 +18,7 @@
 | `code-block` | Markdown 代码块 | `code`, `narration`；可选 `heading` |
 | `comparison` | 对比、vs、之前/之后 | `left_title`, `right_title`, `left_items`, `right_items` |
 | `step-diagram` | 有序列表 ≥3 项 | `steps`, `narration`；可选 `heading` |
-| `ending` | 片尾（渲染同 hero） | 同 `hero` |
+| `ending` | 片尾 CTA | 同 `hero` 字段；**渲染使用 `hero.html` 模板**（非 `ending.html`） |
 
 ## 断句规则（竖屏）
 
@@ -32,7 +32,16 @@
 
 1. 第 1 镜：`hero`（封面）
 2. 中间：按文章结构交替 `text-card` / `code-block` / `quote-card` 等
-3. 最后 1 镜：`hero` 或 `ending`（收束/CTA）
+3. 最后 1 镜：`ending`（收束/CTA；渲染走 hero 模板）
+
+## --write-template 草稿约定
+
+`vep article storyboard --write-template` 自动生成的草稿包含：
+
+- 封面 `hero` + 最多 5 个正文镜 + 片尾 `ending`
+- `code-block` 写 `code` 字段；`step-diagram` 写 `steps`；`comparison` 写左右列表占位
+
+生成后务必人工校对 `narration` 与画面字段，再 `vep article validate`。
 
 ## 编辑决策字段
 

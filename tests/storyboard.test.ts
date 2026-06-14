@@ -1,7 +1,7 @@
 import assert from "node:assert";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { validateStoryboard, validateSegmentFields } from "../src/article/storyboard.js";
+import { validateStoryboard, validateSegmentFields, collectStoryboardWarnings } from "../src/article/storyboard.js";
 import { validateTimeline } from "../src/article/timeline.js";
 
 const STORYBOARD_PATH = resolve(import.meta.dirname, "..", "examples", "storyboard.json");
@@ -20,8 +20,9 @@ function test(name: string, fn: () => void) {
 test("parses example storyboard.json", () => {
   const raw = readFileSync(STORYBOARD_PATH, "utf-8");
   const sb = validateStoryboard(raw);
-  assert.strictEqual(sb.segments.length, 3);
+  assert.strictEqual(sb.segments.length, 4);
   assert.strictEqual(sb.version, 1);
+  assert.strictEqual(sb.title, "用 JSON 驱动视频剪辑");
 });
 
 test("all segments have narration", () => {
@@ -49,6 +50,29 @@ test("validateSegmentFields warns on missing hero text", () => {
     narration: "test narration",
   });
   assert.ok(warnings.some((w) => w.includes("hero missing")));
+});
+
+test("collectStoryboardWarnings detects duplicate id", () => {
+  const dup = JSON.stringify({
+    version: 1,
+    title: "Test",
+    segments: [
+      { id: 1, visual_type: "hero", narration: "a", text: "t" },
+      { id: 1, visual_type: "text-card", narration: "b", heading: "h" },
+    ],
+  });
+  const { warnings } = collectStoryboardWarnings(dup);
+  assert.ok(warnings.some((w) => w.includes("duplicate segment id")));
+});
+
+test("collectStoryboardWarnings flags deprecated duration", () => {
+  const withDur = JSON.stringify({
+    version: 1,
+    title: "Test",
+    segments: [{ id: 1, visual_type: "hero", narration: "a", text: "t", duration: 5 }],
+  });
+  const { warnings } = collectStoryboardWarnings(withDur);
+  assert.ok(warnings.some((w) => w.includes("deprecated 'duration'")));
 });
 
 test("validates timeline schema", () => {

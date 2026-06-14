@@ -1,8 +1,9 @@
-import { readFileSync, readdirSync, writeFileSync, existsSync } from "fs";
+import { readFileSync, readdirSync, writeFileSync, existsSync, unlinkSync } from "fs";
 import path from "path";
 import { ensureDir, log } from "../utils.js";
 import { loadStoryboard } from "./storyboard.js";
 import type { Storyboard, StoryboardSegment } from "./types.js";
+import { parseSegmentId, sceneHtmlName, scenePngName } from "./segment-files.js";
 
 function esc(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -67,7 +68,7 @@ function buildSegmentData(
     return {
       tname,
       html: renderTemplate(template, {
-        heading: seg.heading ?? "",
+        heading: seg.heading ?? seg.text ?? "",
         body: (seg.body ?? "").replace(/\n/g, "<br>"),
       }),
     };
@@ -137,20 +138,54 @@ function buildSegmentData(
   };
 }
 
-export function runArticleRender(projectDir: string, storyboardFile?: string): void {
+function removeOrphanScenes(scenesDir: string, activeIds: Set<number>): void {
+  if (!existsSync(scenesDir)) return;
+
+  for (const fname of readdirSync(scenesDir)) {
+    const id = parseSegmentId(fname, "scene");
+    if (id === null) continue;
+    if (!activeIds.has(id)) {
+      const filePath = path.join(scenesDir, fname);
+      unlinkSync(filePath);
+      log.text(`Removed orphan ${fname}`);
+    }
+  }
+}
+
+export interface RenderOptions {
+  dryRun?: boolean;
+}
+
+export function runArticleRender(
+  projectDir: string,
+  storyboardFile?: string,
+  opts: RenderOptions = {}
+): void {
   const script = loadStoryboard(projectDir, storyboardFile);
   const templatesDir = path.join(projectDir, "templates");
   const scenesDir = path.join(projectDir, "scenes");
-  ensureDir(scenesDir);
+  const activeIds = new Set(script.segments.map((s) => s.id));
 
+  if (opts.dryRun) {
+    for (const seg of script.segments) {
+      log.text(
+        `[dry-run] would render ${sceneHtmlName(seg.id)} (${seg.visual_type})`
+      );
+    }
+    log.scene(`[dry-run] would render ${script.segments.length} scene(s)`);
+    return;
+  }
+
+  ensureDir(scenesDir);
   const templates = loadTemplates(templatesDir);
 
   for (const seg of script.segments) {
     const { tname, html } = buildSegmentData(seg, script, templates);
-    const out = path.join(scenesDir, `scene${String(seg.id).padStart(2, "0")}.html`);
+    const out = path.join(scenesDir, sceneHtmlName(seg.id));
     writeFileSync(out, html, "utf-8");
-    log.text(`Rendered scene ${String(seg.id).padStart(2, "0")} (${tname})`);
+    log.text(`Rendered ${sceneHtmlName(seg.id)} (${tname})`);
   }
 
+  removeOrphanScenes(scenesDir, activeIds);
   log.scene(`Done! ${script.segments.length} scenes rendered`);
 }

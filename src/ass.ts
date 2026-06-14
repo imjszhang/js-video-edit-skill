@@ -27,14 +27,20 @@ export function formatAssTime(seconds: number): string {
     .padStart(2, "0")}.${cs.toString().padStart(2, "0")}`;
 }
 
+/** Escape ASS control characters in subtitle text */
+export function escapeAssText(text: string): string {
+  return text.replace(/\\/g, "\\\\").replace(/\{/g, "\\{").replace(/\}/g, "\\}");
+}
+
 /** Wrap long narration into subtitle lines */
 export function wrapAssText(text: string, maxLen = 20): string {
-  if (text.length <= maxLen) return text;
+  const safe = escapeAssText(text);
+  if (safe.length <= maxLen) return safe;
 
   const lines: string[] = [];
   let current = "";
 
-  for (const ch of text) {
+  for (const ch of safe) {
     if (current.length >= maxLen && (ch === "，" || ch === "。" || ch === " " || ch === "、")) {
       lines.push(current + ch);
       current = "";
@@ -45,8 +51,8 @@ export function wrapAssText(text: string, maxLen = 20): string {
   if (current) lines.push(current);
 
   if (lines.length <= 1) {
-    const mid = Math.ceil(text.length / 2);
-    return `${text.slice(0, mid)}\\N${text.slice(mid)}`;
+    const mid = Math.ceil(safe.length / 2);
+    return `${safe.slice(0, mid)}\\N${safe.slice(mid)}`;
   }
 
   return lines.join("\\N");
