@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{min-width:1080px;min-height:1920px;background:#000;display:flex;align-items:center;justify-content:center;overflow:hidden;font-family:"Microsoft YaHei",sans-serif}
+.wrapper{width:1080px;height:1920px;position:relative;background:#0a0a0a;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 50px}
+.grid{position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.03) 1px,transparent 1px);background-size:50px 50px}
+.quote-mark{color:#FCD228;font-size:120px;line-height:1;margin-bottom:20px}
+.quote{color:#fff;font-size:48px;line-height:1.5;font-style:italic;text-align:center;width:100%;padding:0 30px}
+.author{color:#888;font-size:32px;margin-top:50px;text-align:right;width:100%}
+</style>
+</head>
+<body>
+<div class="wrapper">
+<div class="grid"></div>
+<div class="quote-mark">"</div>
+<div class="quote">{{{quote}}}</div>
+{{#author}}<div class="author">— {{author}}</div>{{/author}}
+</div>
+</body>
+</html>

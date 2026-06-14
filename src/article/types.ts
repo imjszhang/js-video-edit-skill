@@ -92,6 +92,11 @@ export const VepConfigSchema = z.object({
   height: z.number().int().positive().default(1920),
   jsEyesWs: z.string().default("ws://localhost:18080"),
   jsEyesClientPath: z.string().optional(),
+  screenshotBackend: z
+    .enum(["auto", "openclaw", "playwright", "js-eyes"])
+    .default("auto"),
+  openclawCli: z.string().optional(),
+  openclawBrowserProfile: z.string().default("openclaw"),
   screenshotPort: z.number().int().positive().default(18998),
   screenshotTabDelay: z.number().int().nonnegative().default(3000),
   silenceThreshold: z.string().default("-50dB"),

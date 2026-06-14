@@ -116,12 +116,12 @@ vep article pipeline ./project            # render → screenshot → tts → ti
 | `vep article storyboard <projectDir>` | Analyze article.md, output LLM digest |
 | `vep article validate <projectDir>` | Validate storyboard.json (`--strict` for CI) |
 | `vep article render <projectDir>` | Render HTML scenes |
-| `vep article screenshot <projectDir>` | JS-Eyes PNG capture |
+| `vep article screenshot <projectDir>` | PNG capture (`--backend auto\|openclaw\|playwright\|js-eyes`) |
 | `vep article tts <projectDir>` | edge-tts audio generation |
 | `vep article timeline <projectDir>` | Build timeline.json + subs.ass |
 | `vep article assemble <projectDir>` | Compose final.mp4 |
 | `vep article recover <projectDir>` | Recover from existing audio/scenes (`--force` to overwrite) |
-| `vep article pipeline <projectDir>` | End-to-end with `--from` / `--to` / `--dry-run` / `--force` |
+| `vep article pipeline <projectDir>` | End-to-end with `--from` / `--to` / `--dry-run` / `--force` / `--backend` / `--port` / `--tab-delay` / `--retries` |
 
 Full Mode B guide: [docs/article-quickstart.md](docs/article-quickstart.md)
 

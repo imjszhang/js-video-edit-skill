@@ -18,7 +18,7 @@
     "generate-luts": "tsx scripts/cli.ts generate-luts",
     "pipeline": "tsx scripts/cli.ts pipeline",
     "article": "tsx scripts/cli.ts article",
-    "test": "tsx tests/decision.test.ts && tsx tests/storyboard.test.ts && tsx tests/storyboard-prompt.test.ts && tsx tests/recover.test.ts && tsx tests/timeline-builder.test.ts && tsx tests/assemble.test.ts && tsx tests/ass.test.ts && tsx tests/timeline.test.ts && tsx tests/segment-files.test.ts",
+    "test": "tsx tests/decision.test.ts && tsx tests/storyboard.test.ts && tsx tests/storyboard-prompt.test.ts && tsx tests/recover.test.ts && tsx tests/timeline-builder.test.ts && tsx tests/assemble.test.ts && tsx tests/screenshot-backends.test.ts && tsx tests/ass.test.ts && tsx tests/timeline.test.ts && tsx tests/segment-files.test.ts && npm run build && tsx tests/skill-root.test.ts",
     "build": "tsc",
     "lint": "tsc --noEmit"
   },
@@ -26,7 +26,11 @@
     "commander": "^12.1.0",
     "pino": "^9.5.0",
     "sharp": "^0.33.5",
+    "ws": "^8.18.0",
     "zod": "^3.23.8"
+  },
+  "optionalDependencies": {
+    "playwright": "^1.49.1"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

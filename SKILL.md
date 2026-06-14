@@ -112,7 +112,7 @@ ffmpeg -i graded.mp4 -c:v libx264 -preset slow -crf 18 -pix_fmt yuv420p -r 24 -s
 article.md
   → storyboard.json（分镜脚本：画面 + narration + 编辑决策）
     → HTML 模板渲染（7 种布局）
-      → JS-Eyes 浏览器截图（PNG）
+      → 浏览器截图 PNG（JS-Eyes 优先，auto: 探活 js-eyes → openclaw → playwright）
         → edge-tts 生成语音（MP3）
           → silenceremove 剪静音 → timeline.json + subs.ass
             → ffmpeg 合成（画面 + 字幕 + 音频）
@@ -128,7 +128,7 @@ project/
 ├── timeline.json           # 时间轴（自动生成，音频权威）
 ├── subs.ass                # 字幕（自动生成）
 ├── shot-list.json          # 编辑决策摘要（自动生成）
-├── vep.config.json         # 可选配置（voice、JS-Eyes 等）
+├── vep.config.json         # 可选配置（voice、screenshotBackend 等）
 ├── templates/              # HTML 布局模板
 ├── scenes/                 # 渲染的 HTML + 截图 PNG
 ├── audio/                  # TTS 语音 MP3
@@ -370,7 +370,7 @@ body{min-width:1080px;min-height:1920px;background:#000;display:flex;align-items
 
 **原因：**
 1. **流程长**：20 个场景 ×（渲染+截图+音频），主会话容易超时
-2. **外部依赖**：JS-Eyes Firefox 截图可能挂起，subagent 隔离不影响主会话
+2. **外部依赖**：浏览器截图（OpenClaw/Playwright）可能挂起，subagent 隔离不影响主会话
 3. **可并行**：截图阶段可多 tab 并行，subagent 更适合
 4. **清理方便**：subagent 完成后自动清理临时会话
 
@@ -383,7 +383,7 @@ vep article pipeline D:/path/to/project
 
 或分步：
 1. vep article render → HTML
-2. vep article screenshot → JS-Eyes PNG
+2. vep article screenshot → PNG（auto: 探活 js-eyes → openclaw → playwright；显式 `--backend js-eyes` 不 fallback）
 3. vep article tts → edge-tts MP3
 4. vep article timeline → timeline.json + subs.ass
 5. vep article assemble → trimmed/final.mp4

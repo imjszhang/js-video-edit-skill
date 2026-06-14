@@ -29,6 +29,11 @@ export interface ArticlePipelineOptions {
   dryRun?: boolean;
   writeTemplate?: boolean;
   force?: boolean;
+  backend?: string;
+  port?: number;
+  tabDelay?: number;
+  retries?: number;
+  skipValidate?: boolean;
 }
 
 function stepIndex(step: ArticleStep): number {
@@ -82,6 +87,11 @@ export async function runArticlePipeline(
 
     if (shouldRun("screenshot") && !opts.skipScreenshot) {
       await runArticleScreenshot(projectDir, {
+        backend: opts.backend,
+        port: opts.port,
+        tabDelay: opts.tabDelay,
+        retries: opts.retries,
+        skipValidate: opts.skipValidate,
         verbose: opts.verbose,
         dryRun: opts.dryRun,
       });

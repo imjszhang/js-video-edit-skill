@@ -15,7 +15,8 @@ ffmpeg -version
 pip install edge-tts
 
 # 截图（render 之后需要）
-# JS-Eyes Firefox 扩展运行在 ws://localhost:18080
+# 优先 JS-Eyes：Firefox 扩展 + ws://localhost:18080
+# 备选：OpenClaw `openclaw browser`、Playwright（auto 按此顺序探测）
 ```
 
 ## 1. 初始化项目
@@ -124,9 +125,34 @@ vep article tts ./project --from-id 3 --to-id 5
 | `--from-id` / `--to-id` | `tts` | 分段合成范围 |
 | `--skip-trim` | `timeline` | 跳过 silenceremove |
 | `--skip-screenshot` | `pipeline` | 跳过截图 |
-| `--port` / `--tab-delay` / `--retries` | `screenshot` | JS-Eyes 截图参数 |
+| `--port` / `--tab-delay` / `--retries` | `screenshot`, `pipeline` | 本地静态服务器与等待参数 |
+| `--backend <name>` | `screenshot`, `pipeline` | `auto`（默认）\| `openclaw` \| `playwright` \| `js-eyes` |
+| `--skip-validate` | `screenshot`, `pipeline` | 跳过截图居中校验 |
 
-`vep.config.json` 可覆盖 TTS 音色、分辨率、silenceremove 阈值、截图端口等（存在时优先于 `storyboard.json` 的同名字段）。
+`vep.config.json` 可覆盖 TTS 音色、分辨率、silenceremove 阈值、截图端口、`screenshotBackend` 等（存在时优先于 `storyboard.json` 的同名字段）。
+
+### 截图后端（`screenshotBackend`）
+
+`auto`（默认）探测顺序：
+
+1. **JS-Eyes** — 内置 [`lib/js-eyes-client.js`](../lib/js-eyes-client.js)；需 Firefox 扩展 + `ws://localhost:18080`。`auto` 会 **探活 WebSocket**，不可达时打印 warning 并 fallback 到下一后端。
+2. **OpenClaw** — `openclaw browser` 可用时
+3. **Playwright** — 已安装 `playwright` 且 Chromium 可执行文件存在（`npx playwright install chromium`）
+
+显式指定 `--backend js-eyes` 或 `screenshotBackend: "js-eyes"` 时 **不会 fallback**；扩展未连接时在 `connect()` 阶段报错退出。
+
+手动指定：
+
+```bash
+vep article screenshot ./project --backend openclaw
+vep article screenshot ./project --backend playwright
+vep article screenshot ./project --backend js-eyes
+vep article pipeline ./project --backend auto --port 18998
+```
+
+**JS-Eyes 提示**：客户端无 resize API，建议 Firefox 窗口不小于 `vep.config.json` 中的 `width` × `height`（默认 1080×1920），以保证 fullPage 截图尺寸与成片一致。
+
+OpenClaw 环境需 Gateway 运行；本地 HTML 通过 `http://localhost:<screenshotPort>` 提供。若 SSRF 策略拦截 localhost，在 `openclaw.json` 的 `browser.ssrfPolicy.allowedHostnames` 加入 `localhost`。
 
 ## 4. 产出文件
 

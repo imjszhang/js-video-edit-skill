@@ -275,8 +275,9 @@ article
 
 article
   .command("screenshot")
-  .description("Capture PNG screenshots via JS-Eyes")
+  .description("Capture PNG screenshots (js-eyes preferred, then openclaw / playwright)")
   .argument("<projectDir>", "Project directory")
+  .option("--backend <name>", "Screenshot backend: auto|openclaw|playwright|js-eyes")
   .option("--port <n>", "HTTP server port", "18998")
   .option("--tab-delay <ms>", "Delay before screenshot", "3000")
   .option("--retries <n>", "Retry count per scene", "1")
@@ -288,6 +289,7 @@ article
         tabDelay: parseInt(opts.tabDelay),
         retries: parseInt(opts.retries),
         skipValidate: opts.skipValidate,
+        backend: opts.backend,
         verbose: cliContext.verbose,
         dryRun: cliContext.dryRun,
       });
@@ -394,6 +396,11 @@ article
   .option("--to <step>", `End step (${ARTICLE_STEPS.join("|")})`, "assemble")
   .option("--skip-tts", "Skip TTS generation")
   .option("--skip-screenshot", "Skip screenshot step")
+  .option("--backend <name>", "Screenshot backend: auto|openclaw|playwright|js-eyes")
+  .option("--port <n>", "HTTP server port for screenshot step", "18998")
+  .option("--tab-delay <ms>", "Delay before screenshot", "3000")
+  .option("--retries <n>", "Retry count per scene", "1")
+  .option("--skip-validate", "Skip centering validation after screenshot")
   .option("--storyboard <file>", "Custom storyboard path")
   .option("--write-template", "Write draft storyboard.json (required to continue past storyboard step)")
   .option("-f, --force", "Overwrite existing files in init/storyboard/recover steps")
@@ -403,6 +410,11 @@ article
       to: opts.to,
       skipTts: opts.skipTts,
       skipScreenshot: opts.skipScreenshot,
+      backend: opts.backend,
+      port: opts.port !== undefined ? parseInt(opts.port, 10) : undefined,
+      tabDelay: opts.tabDelay !== undefined ? parseInt(opts.tabDelay, 10) : undefined,
+      retries: opts.retries !== undefined ? parseInt(opts.retries, 10) : undefined,
+      skipValidate: opts.skipValidate,
       storyboardFile: opts.storyboard,
       writeTemplate: opts.writeTemplate,
       force: opts.force,

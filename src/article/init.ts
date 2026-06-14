@@ -1,13 +1,9 @@
 import { cpSync, existsSync, mkdirSync, writeFileSync, readFileSync } from "fs";
 import path from "path";
-import { fileURLToPath } from "url";
 import { ensureDir, log } from "../utils.js";
+import { BUNDLED_TEMPLATES } from "../skill-root.js";
 import { writeDefaultVepConfig, PROJECT_DIRS } from "./config.js";
 import { validateSegmentFields, collectStoryboardWarnings } from "./storyboard.js";
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const SKILL_ROOT = path.resolve(__dirname, "../..");
-const BUNDLED_TEMPLATES = path.join(SKILL_ROOT, "templates", "article");
 
 const DEFAULT_STORYBOARD = {
   version: 1,

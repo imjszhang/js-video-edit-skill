@@ -1,0 +1,16 @@
+{
+  "voice": "zh-CN-YunxiNeural",
+  "fps": 24,
+  "width": 1080,
+  "height": 1920,
+  "jsEyesWs": "ws://localhost:18080",
+  "screenshotBackend": "js-eyes",
+  "openclawBrowserProfile": "openclaw",
+  "screenshotPort": 18998,
+  "screenshotTabDelay": 3000,
+  "silenceThreshold": "-50dB",
+  "silenceDuration": 0.2,
+  "silencePadding": 0.1,
+  "subtitleFontSize": 48,
+  "subtitleMarginV": 100
+}

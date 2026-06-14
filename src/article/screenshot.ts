@@ -1,12 +1,14 @@
-import { createServer } from "http";
-import { readFileSync, readdirSync, writeFileSync, existsSync } from "fs";
+import { readdirSync } from "fs";
 import path from "path";
-import { createRequire } from "module";
 import { log } from "../utils.js";
 import { loadVepConfig } from "./config.js";
+import { VepConfigSchema } from "./types.js";
 import { sortBySegmentId, parseSegmentId, scenePngName } from "./segment-files.js";
-
-const require = createRequire(import.meta.url);
+import {
+  resolveScreenshotBackend,
+  startSceneStaticServer,
+  captureScenes,
+} from "./screenshot-backends.js";
 
 export interface ScreenshotOptions {
   port?: number;
@@ -15,6 +17,7 @@ export interface ScreenshotOptions {
   verbose?: boolean;
   dryRun?: boolean;
   skipValidate?: boolean;
+  backend?: string;
 }
 
 async function validateCentering(
@@ -92,40 +95,22 @@ async function validateCentering(
   }
 }
 
-function resolveJsEyesClient(configPath?: string): string {
-  if (configPath && existsSync(configPath)) {
-    return configPath;
-  }
-
-  const candidates = [
-    process.env.JS_EYES_CLIENT_PATH,
-    "D:/.openclaw/workspace/skills/js-browser-ops-skill/lib/js-eyes-client.js",
-    path.join(process.cwd(), "node_modules", "js-eyes-client", "index.js"),
-  ].filter(Boolean) as string[];
-
-  for (const c of candidates) {
-    if (existsSync(c)) return c;
-  }
-
-  throw new Error(
-    "JS-Eyes client not found. Set jsEyesClientPath in vep.config.json or JS_EYES_CLIENT_PATH env var."
-  );
-}
-
-function resolveSceneFile(scenesDir: string, fileName: string): string | null {
-  const safeName = path.basename(fileName);
-  const filePath = path.resolve(scenesDir, safeName);
-  if (!filePath.startsWith(path.resolve(scenesDir) + path.sep)) {
-    return null;
-  }
-  return filePath;
-}
-
 export async function runArticleScreenshot(
   projectDir: string,
   opts: ScreenshotOptions = {}
 ): Promise<void> {
   const config = loadVepConfig(projectDir);
+  if (opts.backend) {
+    const parsed = VepConfigSchema.shape.screenshotBackend.safeParse(opts.backend);
+    if (!parsed.success) {
+      log.error(
+        `Invalid --backend: ${opts.backend}. Must be one of: auto, openclaw, playwright, js-eyes`
+      );
+      process.exit(1);
+    }
+    config.screenshotBackend = parsed.data;
+  }
+
   const scenesDir = path.join(projectDir, "scenes");
   const port = opts.port ?? config.screenshotPort;
   const tabDelay = opts.tabDelay ?? config.screenshotTabDelay;
@@ -142,94 +127,53 @@ export async function runArticleScreenshot(
   }
 
   if (opts.dryRun) {
-    log.scene(`[dry-run] would screenshot ${htmlFiles.length} scene(s)`);
+    const backend = config.screenshotBackend === "auto" ? "auto-detect" : config.screenshotBackend;
+    log.scene(
+      `[dry-run] would screenshot ${htmlFiles.length} scene(s) via backend: ${backend}`
+    );
     return;
   }
 
-  const server = createServer((req, res) => {
-    const rawName = (req.url ?? "/").split("?")[0]!.split("/").pop() ?? "";
-    const filePath = resolveSceneFile(scenesDir, rawName);
-    const ext = path.extname(rawName);
-    if (filePath && existsSync(filePath)) {
-      res.writeHead(200, {
-        "Content-Type": ext === ".html" ? "text/html;charset=utf-8" : "image/png",
-      });
-      res.end(readFileSync(filePath));
-    } else {
-      res.writeHead(404);
-      res.end("404");
-    }
-  });
+  const backend = await resolveScreenshotBackend(config);
+  log.text(`Screenshot backend: ${backend}`);
 
-  await new Promise<void>((resolve) => server.listen(port, resolve));
+  const server = await startSceneStaticServer(scenesDir, port);
   log.text(`Static server on http://localhost:${port}`);
 
-  const clientPath = resolveJsEyesClient(config.jsEyesClientPath);
-  const wsUrl = process.env.JS_EYES_WS ?? config.jsEyesWs;
-  const { BrowserAutomation } = require(clientPath);
-  const bot = new BrowserAutomation(wsUrl);
-
-  const failed: string[] = [];
-  let succeeded = 0;
-
   try {
-    await bot.connect();
+    const { succeeded, failed } = await captureScenes(backend, {
+      scenesDir,
+      htmlFiles,
+      port,
+      tabDelay,
+      retries,
+      width: config.width,
+      height: config.height,
+      config,
+    });
 
-    for (const file of htmlFiles) {
-      const segId = parseSegmentId(file, "scene");
-      const url = `http://localhost:${port}/${file}`;
-      let success = false;
-
-      for (let attempt = 0; attempt < retries && !success; attempt++) {
-        if (attempt > 0) log.text(`Retry ${attempt + 1} for ${file}`);
-
-        const tabId = await bot.openUrl(url);
-        await new Promise((r) => setTimeout(r, tabDelay));
-
-        try {
-          const result = await bot.captureScreenshot(tabId, {
-            fullPage: true,
-            format: "png",
-            timeout: 120,
-          });
-
-          const buf = Buffer.from(result.dataUrl.split(",")[1]!, "base64");
-          const pngName = segId !== null ? scenePngName(segId) : file.replace(".html", ".png");
-          const pngPath = path.join(scenesDir, pngName);
-          writeFileSync(pngPath, buf);
-          log.text(`Screenshot ${pngName}`);
-
-          if (!opts.skipValidate) {
-            const v = await validateCentering(pngPath);
-            log.text(
-              `  h_offset=${v.hOffset >= 0 ? "+" : ""}${v.hOffset.toFixed(0)}px, usage=${v.usageW.toFixed(0)}%W x ${v.usageH.toFixed(0)}%H`
-            );
-          }
-
-          success = true;
-          succeeded++;
-        } finally {
-          await bot.closeTab(tabId);
-          await new Promise((r) => setTimeout(r, 300));
-        }
-      }
-
-      if (!success) {
-        log.error(`Failed to screenshot ${file} after ${retries} attempt(s)`);
-        failed.push(file);
+    if (!opts.skipValidate) {
+      for (const file of htmlFiles) {
+        if (failed.includes(file)) continue;
+        const segId = parseSegmentId(file, "scene");
+        const pngName = segId !== null ? scenePngName(segId) : file.replace(".html", ".png");
+        const pngPath = path.join(scenesDir, pngName);
+        const v = await validateCentering(pngPath);
+        log.text(
+          `  ${pngName} h_offset=${v.hOffset >= 0 ? "+" : ""}${v.hOffset.toFixed(0)}px, usage=${v.usageW.toFixed(0)}%W x ${v.usageH.toFixed(0)}%H`
+        );
       }
     }
+
+    if (failed.length > 0) {
+      log.error(
+        `Screenshot failed for ${failed.length}/${htmlFiles.length} scene(s): ${failed.join(", ")}`
+      );
+      process.exit(1);
+    }
+
+    log.scene(`Screenshots complete — ${succeeded}/${htmlFiles.length} scene(s) [${backend}]`);
   } finally {
-    bot.disconnect();
     server.close();
   }
-
-  if (failed.length > 0) {
-    log.error(
-      `Screenshot failed for ${failed.length}/${htmlFiles.length} scene(s): ${failed.join(", ")}`
-    );
-    process.exit(1);
-  }
-
-  log.scene(`Screenshots complete — ${succeeded}/${htmlFiles.length} scene(s)`);
 }
