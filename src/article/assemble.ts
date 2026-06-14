@@ -17,6 +17,7 @@ import { loadVepConfig } from "./config.js";
 export interface AssembleOptions {
   verbose?: boolean;
   dryRun?: boolean;
+  skipSubtitles?: boolean;
 }
 
 function warnStaleTimeline(projectDir: string, timelinePath: string): void {
@@ -111,7 +112,7 @@ export async function runArticleAssemble(
   const videoListPath = path.join(trimmedDir, "video_concat.txt");
   writeFileSync(
     videoListPath,
-    clipFiles.map((f) => `file '${crossPath(f)}'`).join("\n")
+    clipFiles.map((f) => `file '${crossPath(path.basename(f))}'`).join("\n")
   );
   const videoOnlyPath = path.join(trimmedDir, "video_only.mp4");
   await concatClips(videoListPath, videoOnlyPath);
@@ -120,7 +121,7 @@ export async function runArticleAssemble(
   const audioListPath = path.join(trimmedDir, "audio_concat.txt");
   writeFileSync(
     audioListPath,
-    audioFiles.map((f) => `file '${crossPath(f)}'`).join("\n")
+    audioFiles.map((f) => `file '${crossPath(path.basename(f))}'`).join("\n")
   );
   const audioFullPath = path.join(trimmedDir, "audio_full.m4a");
   await concatAudio(audioListPath, audioFullPath);
@@ -145,6 +146,10 @@ export async function runArticleAssemble(
   });
   log.text(`Muxed: ${muxedPath}`);
 
+  const roughPath = path.join(trimmedDir, "rough.mp4");
+  copyFileSync(muxedPath, roughPath);
+  log.text(`Rough (no subs): ${roughPath}`);
+
   const assSrc = path.join(projectDir, "subs.ass");
   const assDest = path.join(trimmedDir, "subs.ass");
   if (existsSync(assSrc)) {
@@ -152,6 +157,12 @@ export async function runArticleAssemble(
   }
 
   const finalPath = path.join(trimmedDir, "final.mp4");
+  if (opts.skipSubtitles) {
+    log.text(`skipSubtitles: final output is rough (no burned subs)`);
+    log.scene(`Rough video: ${roughPath} (${timeline.total_duration.toFixed(1)}s)`);
+    return roughPath;
+  }
+
   if (existsSync(assDest)) {
     await burnAss(muxedPath, "subs.ass", finalPath);
     log.text(`Burned subtitles → ${finalPath}`);

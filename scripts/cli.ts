@@ -18,6 +18,7 @@ import { runArticleTimeline } from "../src/article/timeline-builder.js";
 import { runArticleAssemble } from "../src/article/assemble.js";
 import { runArticlePipeline, ARTICLE_STEPS } from "../src/article/pipeline.js";
 import { runArticleRecover } from "../src/article/recover.js";
+import { runArticleExportPost } from "../src/article/post-handoff.js";
 import { log } from "../src/utils.js";
 import { cliContext, setCliContext } from "../src/cli-context.js";
 
@@ -357,10 +358,31 @@ article
   .command("assemble")
   .description("Assemble final video from timeline + scenes")
   .argument("<projectDir>", "Project directory")
-  .action(async (projectDir) => {
+  .option("--skip-subtitles", "Stop at rough.mp4 without burning subtitles")
+  .action(async (projectDir, opts) => {
     try {
       await runArticleAssemble(projectDir, {
         verbose: cliContext.verbose,
+        dryRun: cliContext.dryRun,
+        skipSubtitles: opts.skipSubtitles,
+      });
+    } catch (err) {
+      log.error(`${err}`);
+      process.exit(1);
+    }
+  });
+
+article
+  .command("export")
+  .description("Export Mode A post-production handoff bundle (post/decision.json, transcript, SRT)")
+  .argument("<projectDir>", "Project directory")
+  .option("--storyboard <file>", "Custom storyboard path")
+  .option("-f, --force", "Overwrite existing post/ files")
+  .action((projectDir, opts) => {
+    try {
+      runArticleExportPost(projectDir, {
+        storyboardFile: opts.storyboard,
+        force: opts.force,
         dryRun: cliContext.dryRun,
       });
     } catch (err) {
@@ -403,7 +425,9 @@ article
   .option("--skip-validate", "Skip centering validation after screenshot")
   .option("--storyboard <file>", "Custom storyboard path")
   .option("--write-template", "Write draft storyboard.json (required to continue past storyboard step)")
-  .option("-f, --force", "Overwrite existing files in init/storyboard/recover steps")
+  .option("--export-post", "Run export step after assemble (writes post/ handoff bundle)")
+  .option("--skip-subtitles", "Assemble rough.mp4 only, without burning subtitles")
+  .option("-f, --force", "Overwrite existing files in init/storyboard/recover/export steps")
   .action(async (projectDir, opts) => {
     await runArticlePipeline(projectDir, {
       from: opts.from,
@@ -417,6 +441,8 @@ article
       skipValidate: opts.skipValidate,
       storyboardFile: opts.storyboard,
       writeTemplate: opts.writeTemplate,
+      exportPost: opts.exportPost,
+      skipSubtitles: opts.skipSubtitles,
       force: opts.force,
       verbose: cliContext.verbose,
       dryRun: cliContext.dryRun,

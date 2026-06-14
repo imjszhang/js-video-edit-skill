@@ -69,4 +69,8 @@ export const PROJECT_FILES = {
   timeline: "timeline.json",
   subsAss: "subs.ass",
   shotList: "shot-list.json",
+  postDecision: "post/decision.json",
+  postTranscript: "post/transcript.json",
+  postSubsSrt: "post/subs.srt",
+  postManifest: "post/manifest.json",
 } as const;

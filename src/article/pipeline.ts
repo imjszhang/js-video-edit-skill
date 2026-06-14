@@ -6,6 +6,7 @@ import { runArticleScreenshot } from "./screenshot.js";
 import { runArticleTts } from "./tts.js";
 import { runArticleTimeline } from "./timeline-builder.js";
 import { runArticleAssemble } from "./assemble.js";
+import { runArticleExportPost } from "./post-handoff.js";
 
 export const ARTICLE_STEPS = [
   "init",
@@ -15,6 +16,7 @@ export const ARTICLE_STEPS = [
   "tts",
   "timeline",
   "assemble",
+  "export",
 ] as const;
 
 export type ArticleStep = (typeof ARTICLE_STEPS)[number];
@@ -34,6 +36,8 @@ export interface ArticlePipelineOptions {
   tabDelay?: number;
   retries?: number;
   skipValidate?: boolean;
+  exportPost?: boolean;
+  skipSubtitles?: boolean;
 }
 
 function stepIndex(step: ArticleStep): number {
@@ -117,6 +121,15 @@ export async function runArticlePipeline(
       await runArticleAssemble(projectDir, {
         verbose: opts.verbose,
         dryRun: opts.dryRun,
+        skipSubtitles: opts.skipSubtitles,
+      });
+    }
+
+    if (shouldRun("export") || opts.exportPost) {
+      runArticleExportPost(projectDir, {
+        dryRun: opts.dryRun,
+        force: opts.force,
+        storyboardFile: opts.storyboardFile,
       });
     }
 

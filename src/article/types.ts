@@ -104,6 +104,7 @@ export const VepConfigSchema = z.object({
   silencePadding: z.number().default(0.1),
   subtitleFontSize: z.number().int().positive().default(48),
   subtitleMarginV: z.number().int().positive().default(100),
+  color_profile: z.string().optional(),
 });
 
 export type VepConfig = z.infer<typeof VepConfigSchema>;

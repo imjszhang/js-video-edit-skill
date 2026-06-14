@@ -119,13 +119,16 @@ vep article pipeline ./project            # render → screenshot → tts → ti
 | `vep article screenshot <projectDir>` | PNG capture (`--backend auto\|openclaw\|playwright\|js-eyes`) |
 | `vep article tts <projectDir>` | edge-tts audio generation |
 | `vep article timeline <projectDir>` | Build timeline.json + subs.ass |
-| `vep article assemble <projectDir>` | Compose final.mp4 |
+| `vep article assemble <projectDir>` | Compose final.mp4 (+ rough.mp4 without subs; `--skip-subtitles` optional) |
+| `vep article export <projectDir>` | Export Mode A handoff bundle to `post/` |
 | `vep article recover <projectDir>` | Recover from existing audio/scenes (`--force` to overwrite) |
-| `vep article pipeline <projectDir>` | End-to-end with `--from` / `--to` / `--dry-run` / `--force` / `--backend` / `--port` / `--tab-delay` / `--retries` |
+| `vep article pipeline <projectDir>` | End-to-end with `--from` / `--to` / `--export-post` / `--dry-run` / `--force` / `--backend` / `--port` / `--tab-delay` / `--retries` |
 
 Full Mode B guide: [docs/article-quickstart.md](docs/article-quickstart.md)
 
-**Data layers:** `storyboard.json` (intent) → `timeline.json` (audio-authoritative) → `subs.ass` + `shot-list.json` (post-production)
+**Mode B → Mode A handoff:** [docs/article-to-footage-handoff.md](docs/article-to-footage-handoff.md)
+
+**Data layers:** `storyboard.json` (intent) → `timeline.json` (audio-authoritative) → `subs.ass` + `shot-list.json` (post-production) → `post/decision.json` + `post/transcript.json` (Mode A export)
 
 > **Note:** Standalone scripts under `scripts/*.ts` (except `cli.ts`) are deprecated thin wrappers — use `vep <command>` instead.
 
@@ -243,7 +246,8 @@ my-video-project/
 ├── templates/           # HTML scene templates (from init)
 ├── scenes/              # sceneXX.html + sceneXX.png
 ├── audio/               # segXX.mp3 (TTS raw)
-└── trimmed/             # trimmed audio, clips, final.mp4
+├── trimmed/             # trimmed audio, clips, rough.mp4, final.mp4
+└── post/                # Mode A handoff (decision.json, transcript.json, subs.srt)
 ```
 
 ## Why This Exists
@@ -259,6 +263,7 @@ Once decisions are text, any text-reading agent can execute them. The tools are 
 PRs welcome. Key areas for improvement:
 
 - [x] Article-to-video CLI (`vep article`)
+- [x] Mode B → Mode A post handoff (`vep article export`)
 - [ ] Support for more transcription engines (AssemblyAI, Groq Whisper)
 - [ ] Auto-detect scene boundaries from transcript
 - [ ] Figma MCP integration for design sync

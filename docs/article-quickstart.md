@@ -162,7 +162,18 @@ OpenClaw 环境需 Gateway 运行；本地 HTML 通过 `http://localhost:<screen
 | `timeline.json` | 音频权威时间轴（自动生成） |
 | `subs.ass` | 字幕文件（可单独调整；重跑 timeline 会覆盖） |
 | `shot-list.json` | 编辑决策摘要 |
-| `trimmed/final.mp4` | 最终视频 |
+| `trimmed/rough.mp4` | 无字幕粗剪（供模式 A 后期） |
+| `trimmed/final.mp4` | 烧 ASS 字幕的发布版 |
+| `post/*` | 模式 A 交接包（`export` 生成，见 [article-to-footage-handoff.md](./article-to-footage-handoff.md)） |
+
+### 导出模式 A 后期包
+
+```bash
+vep article export ./my-video-project
+# 或 pipeline 附带
+vep article pipeline ./my-video-project --export-post
+vep article pipeline ./my-video-project --to export
+```
 
 ## 5. 从存量素材恢复
 
@@ -182,6 +193,7 @@ recover 会检测段数不一致（如 8 段音频 / 5 张画面），区分 mis
 2. 处理段数不一致：补截图、删 orphan PNG、或合并 storyboard 分镜
 3. `vep article timeline ./my-video-project`
 4. `vep article assemble ./my-video-project`
+5. `vep article export ./my-video-project`（可选，供模式 A 后期）
 
 ## Agent Prompt 模板
 

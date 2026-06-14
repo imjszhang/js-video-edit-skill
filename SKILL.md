@@ -132,7 +132,10 @@ project/
 ├── templates/              # HTML 布局模板
 ├── scenes/                 # 渲染的 HTML + 截图 PNG
 ├── audio/                  # TTS 语音 MP3
-└── trimmed/                # 剪过静音的音频 + 最终视频
+├── trimmed/                # 剪过静音的音频 + 视频
+│   ├── rough.mp4           # 无字幕粗剪（模式 A 输入）
+│   └── final.mp4           # 烧字幕发布版
+└── post/                   # export 生成：decision.json, transcript.json, subs.srt
 ```
 
 ### storyboard.json 格式
@@ -183,9 +186,10 @@ vep article screenshot ./project
 vep article tts ./project
 vep article timeline ./project
 vep article assemble ./project
+vep article export ./project    # 模式 A 后期交接包（post/）
 ```
 
-详细指南见 `docs/article-quickstart.md`，分镜规则见 `docs/storyboard-rules.md`。
+详细指南见 `docs/article-quickstart.md`，分镜规则见 `docs/storyboard-rules.md`，B→A 交接见 `docs/article-to-footage-handoff.md`。
 
 > **Deprecated**：`render.py` / `screenshot.js` / `make_video.py` 已由 `vep article` 命令取代。
 
@@ -254,6 +258,7 @@ vep article tts ./project --voice zh-CN-YunxiNeural
 | TTS 旁白过长（Windows） | ≥1500 字自动写 `.vep-tmp/*.txt` 用 `--file` 调用 edge-tts |
 | `--write-template` / `recover` 覆写已有文件 | 默认拒绝；加 `--force`（自动 `.bak` 备份） |
 | 合成视频比音频短、尾部旁白被截 | mux 以 `timeline.total_duration` 为准，不用 `-shortest` |
+| 模式 A 后期需要无字幕片 | 用 `trimmed/rough.mp4`；`vep article export` 写 `post/decision.json` + `post/transcript.json` |
 
 ### Windows / PowerShell
 
@@ -358,6 +363,8 @@ body{min-width:1080px;min-height:1920px;background:#000;display:flex;align-items
 文章在 article.md，项目目录 ./project。
 请运行 vep article storyboard ./project 获取 digest，
 生成 storyboard.json 后执行 vep article pipeline ./project。
+需要模式 A 后期时追加：vep article export ./project
+（详见 docs/article-to-footage-handoff.md）
 ```
 
 ---

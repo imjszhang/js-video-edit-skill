@@ -18,7 +18,7 @@
     "generate-luts": "tsx scripts/cli.ts generate-luts",
     "pipeline": "tsx scripts/cli.ts pipeline",
     "article": "tsx scripts/cli.ts article",
-    "test": "tsx tests/decision.test.ts && tsx tests/storyboard.test.ts && tsx tests/storyboard-prompt.test.ts && tsx tests/recover.test.ts && tsx tests/timeline-builder.test.ts && tsx tests/assemble.test.ts && tsx tests/screenshot-backends.test.ts && tsx tests/ass.test.ts && tsx tests/timeline.test.ts && tsx tests/segment-files.test.ts && npm run build && tsx tests/skill-root.test.ts",
+    "test": "tsx tests/decision.test.ts && tsx tests/storyboard.test.ts && tsx tests/storyboard-prompt.test.ts && tsx tests/recover.test.ts && tsx tests/timeline-builder.test.ts && tsx tests/assemble.test.ts && tsx tests/post-handoff.test.ts && tsx tests/screenshot-backends.test.ts && tsx tests/ass.test.ts && tsx tests/timeline.test.ts && tsx tests/segment-files.test.ts && npm run build && tsx tests/skill-root.test.ts",
     "build": "tsc",
     "lint": "tsc --noEmit"
   },
